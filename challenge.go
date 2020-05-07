@@ -7,42 +7,82 @@ import (
 	"os"
 )
 
-type Grid struct {
-	width  int
-	height int
-	grid   [][]Cell
+func debug(args ...interface{}) {
+	fmt.Fprintln(os.Stderr, args...)
 }
 
-type Pos struct {
-	row int
-	col int
-}
+/**
+ * Grab the pellets as fast as you can!
+ **/
 
-type Cell struct {
-	Type celltype
-	Pos
-}
+var g *Game
 
-type celltype int
+func main() {
+	g = new(Game).WithStdin(os.Stdin)
+	for {
+		debug(g)
+		g.RefreshState()
 
-const (
-	wall celltype = iota
-	ground
-)
-
-type celldecoder rune
-
-func (cd celldecoder) Type() celltype {
-	switch cd {
-	case '#':
-		return wall
-	case ' ':
-		return ground
+		for _, pac := range g.myPacs {
+			pac.Play(
+				pac.ThinkAboutAMove(),
+			)
+			fmt.Println(pac)
+		}
 	}
-	panic(cd)
 }
 
-type Pellet int
+func abs(v int) int {
+	if v >= 0 {
+		return v
+	}
+	return -v
+}
+
+func (p Pos) Dist(pos Pos) int {
+	return abs(p.col-pos.col) + abs(p.row-pos.row)
+}
+
+func (pac *Pac) ThinkAboutAMove() Move {
+	var maxPos Pos
+	var maxWorth = -g.Size()
+	for pos, value := range g.pellets {
+		worth := int(value)
+		worth *= worth
+		worth -= pac.Dist(pos)
+		if abs(maxWorth-worth) <= 2 { // get the furthest from the closest opponent
+			var minDist = g.Size()
+			var minOpnt *Pac
+			for _, opnt := range g.opponentPacs {
+				dist := pac.Dist(opnt.Pos)
+				if minDist > dist {
+					minDist = dist
+					minOpnt = opnt
+				}
+			}
+			if minOpnt.Dist(pos) > minOpnt.Dist(maxPos) {
+				maxWorth = worth
+				maxPos = pos
+			}
+		} else if maxWorth < worth {
+			maxWorth = worth
+			maxPos = pos
+		}
+	}
+	return Move{from: pac.Pos, to: maxPos}
+}
+
+func (pac *Pac) Play(mv Move) {
+	pac.Move = mv
+}
+
+func (g *Game) Pacs() []*Pac {
+	pacs := []*Pac{}
+	for _, pac := range g.myPacs {
+		pacs = append(pacs, pac)
+	}
+	return pacs
+}
 
 type Pac struct {
 	ID   int  // pac number (unique within a team)
@@ -51,39 +91,51 @@ type Pac struct {
 	typeID          int // unused in wood leagues
 	speedTurnsLeft  int // unused in wood leagues
 	abilityCooldown int // unused in wood leagues
+	Move
 }
 
-type Game struct {
-	*bufio.Scanner
-	Grid
-	GameState
-	pastStates []GameState
-}
-
-type GameState struct {
-	turn               int
-	myScore            int
-	opponentScore      int
-	visiblePacCount    int // all your pacs and enemy pacs in sight
-	visiblePelletCount int // all pellets in sight
-	pellets            map[Pos]Pellet
-	pacs               map[Pos]*Pac
-	myPacs             map[Pos]*Pac
-	opponentPacs       map[Pos]*Pac
-}
-
-/**
- * Grab the pellets as fast as you can!
- **/
-
-func main() {
-	g := new(Game).WithStdin(os.Stdin)
-	for {
-		g.RefreshState()
-
-		// fmt.Fprintln(os.Stderr, "Debug messages...")
-		fmt.Println("MOVE 0 15 10") // MOVE <pacId> <x> <y>
+func (g Game) String() string {
+	s := ""
+	for _, row := range g.Runes() {
+		s += fmt.Sprintf("%s\n", string(row))
 	}
+	return s
+}
+
+func (g Game) Runes() [][]rune {
+	runes := g.Grid.Runes()
+	for pos, pellet := range g.pellets {
+		runes[pos.row][pos.col] = pellet.Rune()
+	}
+	return runes
+}
+
+func (g Grid) String() string {
+	s := ""
+	for _, row := range g.Runes() {
+		s += fmt.Sprintf("%s\n", string(row))
+	}
+	return s
+}
+
+func (g Grid) Runes() [][]rune {
+	runes := make([][]rune, g.height)
+	for i, row := range g.grid {
+		runes[i] = make([]rune, g.width)
+		for j, cell := range row {
+			runes[i][j] = cell.Rune()
+		}
+	}
+	return runes
+}
+
+func (p Pac) String() string {
+	return fmt.Sprintf("MOVE %d %d %d", p.ID, p.Move.to.col, p.Move.to.row)
+}
+
+type Move struct {
+	from Pos
+	to   Pos
 }
 
 // code that I don't want to see anymore
@@ -141,11 +193,107 @@ func (g *Game) RefreshState() {
 	fmt.Sscan(g.Text(), &g.visiblePelletCount)
 
 	g.pellets = make(map[Pos]Pellet, g.visiblePelletCount)
+	g.superPellets = make(map[Pos]Pellet, g.visiblePelletCount)
 	for i := 0; i < g.visiblePelletCount; i++ {
 		g.Scan()
-		var x, y int
+		var pos Pos
 		var value Pellet
-		fmt.Sscan(g.Text(), &x, &y, &value)
-		g.pellets[Pos{col: x, row: y}] = value
+		fmt.Sscan(g.Text(), &pos.col, &pos.row, &value)
+		g.pellets[pos] = value
+		if value > 1 {
+			g.superPellets[pos] = value
+		}
 	}
+}
+
+type Grid struct {
+	width  int
+	height int
+	grid   [][]Cell
+}
+
+func (g Grid) Size() int {
+	return g.width * g.height
+}
+
+type Pos struct {
+	row int
+	col int
+}
+
+type Cell struct {
+	Type celltype
+	Pos
+}
+
+func (c Cell) Rune() rune {
+	switch c.Type {
+	case wall:
+		return '#'
+	case ground:
+		return ' '
+	}
+	panic(c.Type)
+}
+
+type celltype int
+
+const (
+	wall celltype = iota
+	ground
+)
+
+type celldecoder rune
+
+func (cd celldecoder) Type() celltype {
+	switch cd {
+	case '#':
+		return wall
+	case ' ':
+		return ground
+	}
+	panic(cd)
+}
+
+type Pellet int
+
+const (
+	pellet      = Pellet(1)
+	superPellet = Pellet(10)
+	maybePellet = Pellet(-1)
+	noPellet    = Pellet(0)
+)
+
+func (p Pellet) Rune() rune {
+	switch p {
+	case pellet:
+		return '*'
+	case superPellet:
+		return 'X'
+	case maybePellet:
+		return '?'
+	case noPellet:
+		return ' '
+	}
+	panic(p)
+}
+
+type Game struct {
+	*bufio.Scanner
+	Grid
+	GameState
+	pastStates []GameState
+}
+
+type GameState struct {
+	turn               int
+	myScore            int
+	opponentScore      int
+	visiblePacCount    int // all your pacs and enemy pacs in sight
+	visiblePelletCount int // all pellets in sight
+	pellets            map[Pos]Pellet
+	superPellets       map[Pos]Pellet
+	pacs               map[Pos]*Pac
+	myPacs             map[Pos]*Pac
+	opponentPacs       map[Pos]*Pac
 }
