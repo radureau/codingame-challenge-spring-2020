@@ -46,10 +46,10 @@ func (p Pos) Dist(pos Pos) int {
 func (pac *Pac) ThinkAboutAMove() Move {
 	var maxPos Pos
 	var maxWorth = -g.Size()
-	for pos, value := range g.pellets {
-		worth := int(value)
+	for _, pt := range g.pellets {
+		worth := int(pt.PelletValue)
 		worth *= worth
-		worth -= pac.Dist(pos)
+		worth -= pac.Dist(pt.Pos)
 		if abs(maxWorth-worth) <= 2 { // get the furthest from the closest opponent
 			var minDist = g.Size()
 			var minOpnt *Pac
@@ -60,13 +60,13 @@ func (pac *Pac) ThinkAboutAMove() Move {
 					minOpnt = opnt
 				}
 			}
-			if minOpnt.Dist(pos) > minOpnt.Dist(maxPos) {
+			if minOpnt.Dist(pt.Pos) > minOpnt.Dist(maxPos) {
 				maxWorth = worth
-				maxPos = pos
+				maxPos = pt.Pos
 			}
 		} else if maxWorth < worth {
 			maxWorth = worth
-			maxPos = pos
+			maxPos = pt.Pos
 		}
 	}
 	return Move{from: pac.Pos, to: maxPos}
@@ -104,8 +104,8 @@ func (g Game) String() string {
 
 func (g Game) Runes() [][]rune {
 	runes := g.Grid.Runes()
-	for pos, pellet := range g.pellets {
-		runes[pos.row][pos.col] = pellet.Rune()
+	for _, pt := range g.pellets {
+		runes[pt.row][pt.col] = pellet.Rune()
 	}
 	return runes
 }
@@ -196,12 +196,11 @@ func (g *Game) RefreshState() {
 	g.superPellets = make(map[Pos]Pellet, g.visiblePelletCount)
 	for i := 0; i < g.visiblePelletCount; i++ {
 		g.Scan()
-		var pos Pos
-		var value Pellet
-		fmt.Sscan(g.Text(), &pos.col, &pos.row, &value)
-		g.pellets[pos] = value
-		if value > 1 {
-			g.superPellets[pos] = value
+		var pt Pellet
+		fmt.Sscan(g.Text(), &pt.col, &pt.row, &pt.PelletValue)
+		g.pellets[pt.Pos] = pt
+		if pt.PelletValue == superPellet {
+			g.superPellets[pt.Pos] = pt
 		}
 	}
 }
@@ -219,6 +218,16 @@ func (g Grid) Size() int {
 type Pos struct {
 	row int
 	col int
+}
+
+func (p Pos) ID() int {
+	return p.row*g.width + p.col
+}
+
+func PosFromID(id int) Pos {
+	p := Pos{row: id % g.width}
+	p.col = id - p.row
+	return p
 }
 
 type Cell struct {
@@ -255,25 +264,24 @@ func (cd celldecoder) Type() celltype {
 	panic(cd)
 }
 
-type Pellet int
+type Pellet struct {
+	PelletValue
+	Pos
+}
+
+type PelletValue int
 
 const (
-	pellet      = Pellet(1)
-	superPellet = Pellet(10)
-	maybePellet = Pellet(-1)
-	noPellet    = Pellet(0)
+	pellet      = PelletValue(1)
+	superPellet = PelletValue(10)
 )
 
-func (p Pellet) Rune() rune {
+func (p PelletValue) Rune() rune {
 	switch p {
 	case pellet:
 		return '*'
 	case superPellet:
 		return 'X'
-	case maybePellet:
-		return '?'
-	case noPellet:
-		return ' '
 	}
 	panic(p)
 }
