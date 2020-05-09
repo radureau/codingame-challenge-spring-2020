@@ -88,31 +88,41 @@ func (pac *Pac) LastMove() *Move {
 // 	Stay  = Direction{}
 // )
 
-func (mv Move) Score() float64 {
-	worth := float64(g.pelletsMap.Get(mv.to).PelletValue)
-	worth *= worth * worth
-	dist := mv.from.Dist(mv.to)
-	worth /= float64(dist * dist)
-	return worth
+func (mv Move) Score() int {
+	if !g.pelletsMap.HasPos(mv.to) {
+		return -g.Size()
+	}
+	score := -mv.from.Dist(mv.to)
+	pv := g.pelletsMap.Get(mv.to).PelletValue
+	return score + int(pv*pv)
+}
+
+func (pac Pac) Dot() Pos {
+	return Pos{
+		row: g.width / g.myPacs.Len() * (pac.ID + 1),
+		col: g.height / g.myPacs.Len() * (pac.ID + 1),
+	}
 }
 
 func (pac *Pac) ThinkAboutAMove() Move {
 	if g.turn > 1 {
-		if pac.Dist(pac.LastMove().to) < 2 && !pac.justCollided {
+		debug(fmt.Sprintf("%d:\t%v", pac.ID, pac.LastMove().to))
+	}
+	if g.turn > 1 {
+		if pac.Dist(pac.LastMove().to) < 3 &&
+			!pac.justCollided &&
+			g.pelletsMap.HasPos(pac.LastMove().to) {
 			pac.Move = *pac.lastMove
-			return pac.Move
-		}
-		if pac.justCollided {
-			debug(pac.ID, "just collided!")
-			pac.Move = Move{pac.Pos, g.Center()}
+			for i := 0; i < 5; i++ {
+				debug(fmt.Sprintf("%d:", pac.ID))
+			}
 			return pac.Move
 		}
 	}
 	var closestOpnt, closestAlly *Pac
-	for _, opnt := range g.opponentPacs {
-		closestOpnt = opnt
-	}
-	// for _, ally := range g.myPacs {
+	// for _, opnt := range g.opponentPacs {
+	// 	closestOpnt = opnt
+	// }
 	minDistAlly := g.Size()
 	for _, ally := range g.pacs {
 		if ally.ID == pac.ID {
@@ -124,25 +134,36 @@ func (pac *Pac) ThinkAboutAMove() Move {
 		}
 	}
 	_, _ = closestAlly, closestOpnt
-	// dot := Pos{
-	// 	row: g.width / len(g.myPacs) * pac.ID,
-	// 	col: g.height / len(g.myPacs) * pac.ID,
+	dot := pac.Dot()
+	_ = dot
+	// debug(dot)
+	if pac.justCollided {
+		debug(pac.ID, "just collided!")
+	}
+	// debug(fmt.Sprintf("ByRelativeDistTo(%v)", pac.Pos))
+	// _pts := g.pelletsMap.Ordered(ByDescPelletValue{}).Sort()
+	// for i := range _pts.sortedPos {
+	// 	pt := _pts.get(i)
+	// 	if pt.PelletValue != superPellet {
+	// 		break
+	// 	}
+	// 	dist := abs(pac.Pos.col-pt.Pos.col) + abs(pac.Pos.row-pt.Pos.row)
+	// 	debug(pac.Pos, "=>", pt.Pos, "cost", pac.Dist(pt.Pos), dist)
 	// }
 	pac.computedOptions = g.pelletsMap.Ordered(
-		// ByDescRelativePelletValueTo(pac.Pos),
-		ByDescPelletValue{},
-		ByRelativeDistTo(pac.Pos),
-		// ByDescRelativeDistTo(closestAlly.Pos),
+		ByDescRelativePelletValueTo(pac.Pos),
+		// ByDescPelletValue{},
+		// ByRelativeDistTo(pac.Pos),
+		// ByRelativeDistTo(dot),
+		ByDescRelativeDistTo(closestAlly.Pos),
 		// ByDescRelativeDistTo(closestOpnt.Pos),
 		// ByRelativeDistTo(dot),
 		ByPosID{},
 	).Sort()
-	if g.turn > 1 {
-		debug(fmt.Sprintf("%d:\t%v", pac.ID, pac.LastMove().to))
-	}
+	// ).Sort().Ordered(ByDescRelativePelletValueTo(pac.Pos)).Sort()
 	for i := range pac.computedOptions.sortedPos[:min(5, pac.computedOptions.Len())] {
 		pt := pac.computedOptions.get(i)
-		debug(fmt.Sprintf("%d:\t%v", pac.ID, pt))
+		debug(fmt.Sprintf("%d:\t%v %d", pac.ID, pt, Move{from: pac.Pos, to: pt.Pos}.Score()))
 	}
 	debug()
 	return pac.PickAMove()
@@ -153,30 +174,30 @@ func (pac *Pac) PickAMove() Move {
 syncMovesWithAllies:
 	for _, to := range pac.computedOptions.sortedPos {
 		mv.to = *to
-		// for _, ally := range g.Pacs() {
-		// if ally.ID == pac.ID {
-		// 	continue
-		// } else if ally.Move.to == *to {
-		// 	if mv.Length() < ally.Move.Length() {
-		// 		pac.Move = mv
-		// 		debug(fmt.Sprintf("%d:\tSwitch with %d", pac.ID, ally.ID))
-		// 		ally.PickAMove()
-		// 		break syncMovesWithAllies
-		// 	}
-		// 	continue
-		// }
-		// if ally.LastMove() != nil && ally.LastMove().to == *to {
-		// 	if mv.Length()+1 < ally.Dist(ally.LastMove().to) {
-		// 		pac.Move = mv
-		// 		ally.forgetLastMove = true
-		// 		debug(fmt.Sprintf("%d:\tSwitch~ with %d", pac.ID, ally.ID))
-		// 		break syncMovesWithAllies
-		// 	}
-		// 	continue
-		// }
-		pac.Move = mv
-		break syncMovesWithAllies
-		// }
+		for _, ally := range g.Pacs() {
+			if ally.ID == pac.ID {
+				continue
+			} else if ally.Move.to == *to {
+				if mv.Length() < ally.Move.Length() {
+					pac.Move = mv
+					debug(fmt.Sprintf("%d:\tSwitch with %d", pac.ID, ally.ID))
+					ally.PickAMove()
+					break syncMovesWithAllies
+				}
+				continue
+			}
+			if ally.LastMove() != nil && ally.LastMove().to == *to {
+				if mv.Length()+1 < ally.Dist(ally.LastMove().to) {
+					pac.Move = mv
+					ally.forgetLastMove = true
+					debug(fmt.Sprintf("%d:\tSwitch~ with %d", pac.ID, ally.ID))
+					break syncMovesWithAllies
+				}
+				continue
+			}
+			pac.Move = mv
+			break syncMovesWithAllies
+		}
 	}
 	return mv
 }
@@ -298,7 +319,7 @@ func (g *Game) RefreshState() {
 		pac := new(Pac)
 		var _mine int
 		g.Scan()
-		fmt.Sscan(g.Text(), &pac.ID, &_mine, &pac.row, &pac.col, &pac.typeID, &pac.speedTurnsLeft, &pac.abilityCooldown)
+		fmt.Sscan(g.Text(), &pac.ID, &_mine, &pac.col, &pac.row, &pac.typeID, &pac.speedTurnsLeft, &pac.abilityCooldown)
 		pac.mine = _mine != 0
 		g.pacs[pac.Pos] = pac
 		if pac.mine {
@@ -558,6 +579,11 @@ func (pm PelletMapper) Get(pos Pos) Pellet {
 	return pm.pellets[pos]
 }
 
+func (pm PelletMapper) HasPos(pos Pos) bool {
+	_, ok := pm.pellets[pos]
+	return ok
+}
+
 func (pm PelletMapper) get(i int) Pellet {
 	return pm.pellets[*pm.sortedPos[i]]
 }
@@ -624,7 +650,7 @@ func ByDescRelativeDistTo(pos Pos) PelletComparator {
 }
 
 func (pm byDescRelativeDistTo) Less(ptI, ptJ *Pellet) bool {
-	return ptI.Dist(pm.Pos) >= ptJ.Dist(pm.Pos)
+	return ptJ.Dist(pm.Pos) < ptI.Dist(pm.Pos)
 }
 
 type ByPosID struct{}
@@ -642,6 +668,9 @@ func ByDescRelativePelletValueTo(pos Pos) PelletComparator {
 }
 
 func (pm byDescRelativePelletValueTo) Less(ptI, ptJ *Pellet) bool {
-	return Move{from: ptI.Pos, to: pm.Pos}.Score() >=
-		Move{from: ptJ.Pos, to: pm.Pos}.Score()
+	worth := func(pt *Pellet) int {
+		score := -pm.Pos.Dist(pt.Pos)
+		return score + int(pt.PelletValue*pt.PelletValue)
+	}
+	return worth(ptJ) < worth(ptI)
 }
