@@ -28,7 +28,11 @@ func (G *Game) String() string {
 		for x := 0; x < G.width; x++ {
 			if cell, ok := G.graph.cells[xy(x, y)]; ok {
 				r := ' '
-				_ = cell
+				if pl, ok := G.pellets[0][cell.Pos]; ok {
+					r = pl.Rune()
+				} else if pac, ok := G.pacs[0][cell.Pos]; ok {
+					r = pac.Rune()
+				}
 				runes[x] = r
 			} else {
 				runes[x] = '#'
@@ -39,14 +43,64 @@ func (G *Game) String() string {
 	return s
 }
 
+type pacID int
+
+// PacID _
+type PacID struct {
+	ID   pacID // pacID: pac number (unique within a team)
+	ally bool  // true if this pac is yours
+}
+
+// Shifumi _
+type Shifumi int
+
+// Pac type
+const (
+	ROCK = Shifumi(iota)
+	PAPER
+	SCISSORS
+)
+
+func (s Shifumi) String() string {
+	return []string{"ROCK", "PAPER", "SCISSORS"}[s]
+}
+
+// Rune for debug purpose
+func (s Shifumi) Rune() rune {
+	return []rune{0x270A, 0x270B, 0x270C}[s]
+}
+
+// Pac _
+type Pac struct {
+	PacID
+	Pos
+	Shifumi
+	speedTurnsLeft  turn
+	abilityCooldown turn
+}
+
+// Rune for debug purpose
+func (p Pac) Rune() rune {
+	var r = []rune{'p', 'f', 'c'}[p.Shifumi]
+	if p.ally {
+		r -= 32
+	}
+	return r
+}
+
 // GameState _
 type GameState struct {
 	*Game
+	before *GameState
 	turn
-	myScore            ScorePoint
-	opponentScore      ScorePoint
-	visiblePacCount    int // all your pacs and enemy pacs in sight
-	visiblePelletCount int // all pellets in sight
+	myScore              ScorePoint
+	opponentScore        ScorePoint
+	visiblePacCount      int // all your pacs and enemy pacs in sight
+	visiblePelletCount   int // all pellets in sight
+	pacs                 map[freshness]map[Pos]*Pac
+	oldestPacFreshness   freshness
+	pellets              map[freshness]map[Pos]*Pellet
+	oldestPelletFresness freshness
 }
 
 func (gs *GameState) String() string {
@@ -64,44 +118,50 @@ func (G *Game) ReadGameState() {
 		G.GameState = &GameState{Game: G, turn: 1}
 		G.pastStates = make([]*GameState, 0, MaxTurn-1)
 	} else {
-		G.pastStates = append(G.pastStates, G.GameState)
-		G.GameState = &GameState{Game: G, turn: G.turn + 1}
+		G.pastStates = append([]*GameState{G.GameState}, G.pastStates...)
+		G.GameState = &GameState{Game: G, turn: G.turn + 1, before: G.GameState}
 	}
 	G.Scan()
 	fmt.Sscan(G.Text(), &G.myScore, &G.opponentScore)
 
 	G.Scan()
 	fmt.Sscan(G.Text(), &G.visiblePacCount)
-
+	G.pacs = make(map[freshness]map[Pos]*Pac)
+	G.pacs[0] = make(map[Pos]*Pac, G.visiblePacCount)
 	for i := 0; i < G.visiblePacCount; i++ {
-		// pacID: pac number (unique within a team)
-		// mine: true if this pac is yours
-		// x: position in the grid
-		// y: position in the grid
-		// typeID: unused in wood leagues
-		// speedTurnsLeft: unused in wood leagues
-		// abilityCooldown: unused in wood leagues
-		var pacID int
-		var mine bool
+		pac := new(Pac)
 		var _mine int
 		var x, y int
 		var typeID string
-		var speedTurnsLeft, abilityCooldown int
 		G.Scan()
-		fmt.Sscan(G.Text(), &pacID, &_mine, &x, &y, &typeID, &speedTurnsLeft, &abilityCooldown)
-		mine = _mine != 0
-		_ = mine
+		fmt.Sscan(G.Text(), &pac.ID, &_mine, &x, &y, &typeID, &pac.speedTurnsLeft, &pac.abilityCooldown)
+		pac.ally = _mine != 0
+		pac.Pos = xy(x, y)
+		switch typeID {
+		case ROCK.String():
+			pac.Shifumi = ROCK
+		case PAPER.String():
+			pac.Shifumi = PAPER
+		default:
+			pac.Shifumi = SCISSORS
+		}
+		G.pacs[0][pac.Pos] = pac
 	}
+	// update freshness
 
 	G.Scan()
 	fmt.Sscan(G.Text(), &G.visiblePelletCount)
-
+	G.pellets = make(map[freshness]map[Pos]*Pellet)
+	G.pellets[0] = make(map[Pos]*Pellet, G.visiblePelletCount)
 	for i := 0; i < G.visiblePelletCount; i++ {
-		// value: amount of points this pellet is worth
-		var x, y, value int
+		pl := new(Pellet)
+		var x, y int
 		G.Scan()
-		fmt.Sscan(G.Text(), &x, &y, &value)
+		fmt.Sscan(G.Text(), &x, &y, &pl.Value)
+		pl.Pos = xy(x, y)
+		G.pellets[0][pl.Pos] = pl
 	}
+	// update freshness
 }
 
 func (G *Game) scanWidthAndHeight() {
@@ -278,8 +338,18 @@ type freshness int
 
 // Pellet _
 type Pellet struct {
-	value ScorePoint
-	freshness
+	Pos
+	Value ScorePoint
+}
+
+// Rune _
+func (pl Pellet) Rune() rune {
+	switch pl.Value {
+	case SuperPellet:
+		return 0x2318
+	default:
+		return '.'
+	}
 }
 
 // Cell _
@@ -311,6 +381,7 @@ func GameFromIoReader(in io.Reader) *Game {
 	return G
 }
 
+// PlayFirstTurn _
 func (G *Game) PlayFirstTurn() {
 	G.ReadGameState()
 }
@@ -320,11 +391,12 @@ func main() {
 	G.buildGraph()
 
 	G.PlayFirstTurn()
+	fmt.Println(G)
+	os.Exit(0)
 	for {
-		break
 		G.ReadGameState()
 		// fmt.Fprintln(os.Stderr, "Debug messages...")
 		fmt.Println("MOVE 0 15 10") // MOVE <pacID> <x> <y>
+		break
 	}
-	fmt.Println(G)
 }
