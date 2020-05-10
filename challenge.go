@@ -112,6 +112,17 @@ type turn int
 // MaxTurn _
 const MaxTurn = turn(200)
 
+// Allies _
+func (gs *GameState) Allies() []*Pac {
+	allies := make([]*Pac, 0, 5)
+	for _, pac := range gs.pacs[0] {
+		if pac.ally {
+			allies = append(allies, pac)
+		}
+	}
+	return allies
+}
+
 // ReadGameState _
 func (G *Game) ReadGameState() {
 	if G.GameState == nil {
@@ -147,7 +158,15 @@ func (G *Game) ReadGameState() {
 		}
 		G.pacs[0][pac.Pos] = pac
 	}
-	// update freshness
+	if G.turn == 1 {
+		for _, pac := range G.Allies() {
+			opnt := *pac
+			opnt.ally = false
+			opnt.Pos = opnt.sym()
+			G.pacs[0][opnt.Pos] = &opnt
+		}
+	} else {
+	} // update freshness
 
 	G.Scan()
 	fmt.Sscan(G.Text(), &G.visiblePelletCount)
@@ -161,7 +180,16 @@ func (G *Game) ReadGameState() {
 		pl.Pos = xy(x, y)
 		G.pellets[0][pl.Pos] = pl
 	}
-	// update freshness
+	if G.turn == 1 {
+		for pos := range G.graph.cells {
+			if _, ok := G.pellets[0][pos]; !ok {
+				if _, ok := G.pacs[0][pos]; !ok {
+					G.pellets[0][pos] = &Pellet{Pos: pos, Value: NormalPellet}
+				}
+			}
+		}
+	} else {
+	} // update freshness
 }
 
 func (G *Game) scanWidthAndHeight() {
