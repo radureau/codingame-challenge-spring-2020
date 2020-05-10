@@ -57,6 +57,7 @@ func (g *Graph) createCell(x, y int) {
 	nC := &Cell{
 		Pos:        xy(x, y),
 		neighbours: make([]*Cell, 0, 4),
+		linkedWith: make(map[Pos]*Cell),
 	}
 	g.cells[nC.Pos] = nC
 	g.positions = append(g.positions, nC.Pos)
@@ -66,6 +67,14 @@ func (g Graph) linkTogether() {
 		for _, dir := range Directions {
 			if c, ok := g.cells[cell.ToDirection(dir)]; ok {
 				cell.neighbours = append(cell.neighbours, c)
+			}
+			current, ok := g.cells[cell.ToDirection(dir)]
+			for ok {
+				if current.Pos == cell.Pos {
+					break
+				}
+				cell.linkedWith[current.Pos] = current
+				current, ok = g.cells[current.ToDirection(dir)]
 			}
 		}
 	}
@@ -174,7 +183,8 @@ func move(from, to *Cell) Move {
 // Cell _
 type Cell struct {
 	Pos
-	neighbours []*Cell // sorted by Direction order
+	neighbours []*Cell       // sorted by Direction order
+	linkedWith map[Pos]*Cell // cells with same row or column without any wall in between
 }
 
 // G Game

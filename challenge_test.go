@@ -41,7 +41,7 @@ func TestDirections(t *testing.T) {
 	}
 }
 
-func TestDists(t *testing.T) {
+func TestGraph(t *testing.T) {
 	input, err := os.Open("simple.txt")
 	assert.NoError(t, err)
 	G = GameFromIoReader(input)
@@ -64,6 +64,20 @@ func TestDists(t *testing.T) {
 	for i, tC := range testCases {
 		t.Run(fmt.Sprint(i, tC), func(t *testing.T) {
 			assert.Equal(t, tC.Dist, G.graph.dists[tC.Move])
+		})
+	}
+
+	testCases2 := []struct {
+		Pos
+		nLinkedWith int
+	}{
+		{xy(2, 2), 2},
+		{xy(1, 4), 6},
+		{xy(1, 2), 5},
+	}
+	for i, tC := range testCases2 {
+		t.Run(fmt.Sprint(i, tC), func(t *testing.T) {
+			assert.Equal(t, tC.nLinkedWith, len(G.graph.cells[tC.Pos].linkedWith))
 		})
 	}
 }
