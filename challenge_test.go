@@ -9,6 +9,26 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestPos(t *testing.T) {
+	G = new(Game)
+	G.height = 3
+	G.width = 5
+
+	testCases := []struct {
+		Pos
+		sym Pos
+	}{
+		{xy(1, 0), xy(3, 0)},
+		{xy(2, 1), xy(2, 1)},
+		{xy(4, 2), xy(0, 2)},
+	}
+	for _, tC := range testCases {
+		t.Run(fmt.Sprintf("%v | %v", tC.Pos, tC.sym), func(t *testing.T) {
+			assert.Equal(t, tC.sym, tC.Pos.sym())
+		})
+	}
+}
+
 func TestDirections(t *testing.T) {
 	G = new(Game)
 	G.height = rand.Intn(3) + 3

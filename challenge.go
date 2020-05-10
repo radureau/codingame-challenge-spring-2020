@@ -295,6 +295,10 @@ func xy(x, y int) Pos {
 	return Pos(y*G.width + x)
 }
 
+func (p Pos) sym() Pos {
+	return xy(-(int(p)%G.width)+G.width-1, int(p)/G.width)
+}
+
 func (p Pos) xy() (int, int) {
 	return int(p) % G.width, int(p) / G.width
 }
