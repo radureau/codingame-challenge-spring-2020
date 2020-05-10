@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"sort"
 )
 
 func debug(args ...interface{}) {
@@ -16,7 +15,7 @@ type Game struct {
 	*bufio.Scanner
 	width  int // width: size of the grid
 	height int // height: top left corner is (x=0, y=0)
-	graph  Graph
+	graph  *Graph
 }
 
 func scanWidthAndHeight() {
@@ -24,6 +23,7 @@ func scanWidthAndHeight() {
 	fmt.Sscan(G.Text(), &G.width, &G.height)
 }
 func buildGraph() {
+	G.graph = NewGraph(G.width * G.height)
 	for y := 0; y < G.height; y++ {
 		G.Scan()
 		const floor = ' '
@@ -32,42 +32,42 @@ func buildGraph() {
 				G.graph.createCell(x, y)
 			}
 		}
-		G.graph.linkTogether()
-		G.graph.computeDistances()
 	}
+	G.graph.linkTogether()
+	G.graph.computeDistances()
 }
 
 // Graph _
 type Graph struct {
 	cells     map[Pos]*Cell
-	positions sort.IntSlice
+	positions []Pos // sorted
 	dists     map[Move]Dist
 }
 
-func (g Graph) init() {
-	maxCap := G.width * G.height
-	g.cells = make(map[Pos]*Cell, maxCap)
-	g.positions = make([]int, 0, maxCap)
+// NewGraph _
+func NewGraph(capacity int) *Graph {
+	g := new(Graph)
+	g.cells = make(map[Pos]*Cell, capacity)
+	g.positions = make([]Pos, 0, capacity)
 	g.dists = map[Move]Dist{}
+	return g
 }
-func (g Graph) createCell(x, y int) {
+func (g *Graph) createCell(x, y int) {
 	nC := &Cell{
 		Pos:        xy(x, y),
 		neighbours: make([]*Cell, 0, 4),
 	}
 	g.cells[nC.Pos] = nC
-	g.positions = append(g.positions, int(nC.Pos))
+	g.positions = append(g.positions, nC.Pos)
 }
 func (g Graph) linkTogether() {
 	for _, cell := range g.cells {
 		for _, dir := range Directions {
-			if c, ok := g.cells[cell.sum(dir.xy())]; ok {
+			if c, ok := g.cells[cell.ToDirection(dir)]; ok {
 				cell.neighbours = append(cell.neighbours, c)
-				// don't do the reciprocal because we want to have neighbours sorted by Direction order
 			}
 		}
 	}
-	g.positions.Sort()
 }
 func (g Graph) writeDistance(c1, c2 *Cell, dist Dist) {
 	g.dists[move(c1, c2)] = dist
@@ -113,7 +113,12 @@ func (g Graph) computeDistances() {
 		}
 	}
 	g.breadthFirstSearch(compute)
-	g.breadthFirstSearch(func(cell *Cell, _ map[Pos]*Cell) { debug(cell.Pos) })
+	// i := 0
+	// g.breadthFirstSearch(func(cell *Cell, _ map[Pos]*Cell) {
+	// 	i++
+	// 	debug(i, cell.Pos)
+	// })
+	// debug(len(g.cells))
 }
 
 // Dist _
@@ -122,17 +127,34 @@ type Dist int
 // Pos _
 type Pos int
 
+func (p Pos) String() string {
+	x, y := p.xy()
+	return fmt.Sprintf("(%d,%d)", x, y)
+}
+
 func xy(x, y int) Pos {
 	return Pos(y*G.width + x)
 }
 
 func (p Pos) xy() (int, int) {
-	return int(p) / G.width, int(p) % G.width
+	return int(p) % G.width, int(p) / G.width
 }
 
-func (p Pos) sum(x, y int) Pos {
-	_x, _y := p.xy()
-	return xy(x+_x, y+_y)
+// ToDirection _
+func (p Pos) ToDirection(dir direction) Pos {
+	x, y := p.xy()
+	x, y = x+dir.x, y+dir.y
+	if x < 0 {
+		x += G.width
+	} else if x == G.width {
+		x = 0
+	}
+	if y < 0 {
+		y += G.height
+	} else if y == G.height {
+		y = 0
+	}
+	return xy(x, y)
 }
 
 // Move _
@@ -147,14 +169,21 @@ func move(from, to *Cell) Move {
 // Cell _
 type Cell struct {
 	Pos
-	neighbours []*Cell
+	neighbours []*Cell // sorted by Direction order
 }
 
 // G Game
 var G *Game
 
-// Directions _
-var Directions []Pos
+type direction struct {
+	x, y int
+}
+
+// Directions
+var (
+	up, down, right, left = direction{0, -1}, direction{0, 1}, direction{1, 0}, direction{-1, 0}
+	Directions            = []direction{up, down, right, left} // order used when moving
+)
 
 func main() {
 	G = new(Game)
@@ -162,8 +191,6 @@ func main() {
 	G.Buffer(make([]byte, 1000000), 1000000)
 
 	scanWidthAndHeight()
-	up, down, right, left := xy(0, -1), xy(0, 1), xy(1, 0), xy(-1, 0)
-	Directions = []Pos{up, down, right, left} // order used when moving
 
 	buildGraph()
 	for {
@@ -208,5 +235,6 @@ func main() {
 
 		// fmt.Fprintln(os.Stderr, "Debug messages...")
 		fmt.Println("MOVE 0 15 10") // MOVE <pacID> <x> <y>
+		break
 	}
 }
