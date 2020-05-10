@@ -18,7 +18,8 @@ type Game struct {
 	height int // height: top left corner is (x=0, y=0)
 	graph  *Graph
 	*GameState
-	pastStates []*GameState // from latest to oldest
+	pastStates   []*GameState // from latest to oldest
+	scoreToReach ScorePoint
 }
 
 func (G *Game) String() string {
@@ -172,6 +173,7 @@ func (G *Game) ReadGameState() {
 	fmt.Sscan(G.Text(), &G.visiblePelletCount)
 	G.pellets = make(map[freshness]map[Pos]*Pellet)
 	G.pellets[0] = make(map[Pos]*Pellet, G.visiblePelletCount)
+	nSuperPellet := 0
 	for i := 0; i < G.visiblePelletCount; i++ {
 		pl := new(Pellet)
 		var x, y int
@@ -179,6 +181,9 @@ func (G *Game) ReadGameState() {
 		fmt.Sscan(G.Text(), &x, &y, &pl.Value)
 		pl.Pos = xy(x, y)
 		G.pellets[0][pl.Pos] = pl
+		if pl.Value == SuperPellet {
+			nSuperPellet++
+		}
 	}
 	if G.turn == 1 {
 		for pos := range G.graph.cells {
@@ -188,6 +193,9 @@ func (G *Game) ReadGameState() {
 				}
 			}
 		}
+		G.scoreToReach = (ScorePoint(len(G.graph.cells)-len(G.pacs[0])-nSuperPellet)*NormalPellet+
+			ScorePoint(nSuperPellet)*SuperPellet)/
+			2 + 1
 	} else {
 	} // update freshness
 }
