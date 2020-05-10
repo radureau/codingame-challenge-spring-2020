@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -18,11 +19,11 @@ type Game struct {
 	graph  *Graph
 }
 
-func scanWidthAndHeight() {
+func (G *Game) scanWidthAndHeight() {
 	G.Scan()
 	fmt.Sscan(G.Text(), &G.width, &G.height)
 }
-func buildGraph() {
+func (G *Game) buildGraph() {
 	G.graph = NewGraph(G.width * G.height)
 	for y := 0; y < G.height; y++ {
 		G.Scan()
@@ -70,8 +71,10 @@ func (g Graph) linkTogether() {
 	}
 }
 func (g Graph) writeDistance(c1, c2 *Cell, dist Dist) {
-	g.dists[move(c1, c2)] = dist
-	g.dists[move(c2, c1)] = dist
+	if _, ok := g.dists[move(c1, c2)]; !ok {
+		g.dists[move(c1, c2)] = dist
+		g.dists[move(c2, c1)] = dist
+	}
 }
 func (g Graph) breadthFirstSearch(compute func(cell *Cell, visited map[Pos]*Cell)) {
 	visited := make(map[Pos]*Cell, len(g.cells))
@@ -107,7 +110,9 @@ func (g Graph) computeDistances() {
 			g.writeDistance(cell, neighbour, Dist(1))
 			if wasVisited(neighbour) {
 				for _, c := range visited {
-					g.writeDistance(cell, c, g.dists[move(neighbour, c)]+1)
+					if cell.Pos != c.Pos {
+						g.writeDistance(cell, c, g.dists[move(neighbour, c)]+1)
+					}
 				}
 			}
 		}
@@ -185,14 +190,20 @@ var (
 	Directions            = []direction{up, down, right, left} // order used when moving
 )
 
-func main() {
-	G = new(Game)
-	G.Scanner = bufio.NewScanner(os.Stdin)
+// GameFromIoReader _
+func GameFromIoReader(in io.Reader) *Game {
+	G := new(Game)
+	G.Scanner = bufio.NewScanner(in)
 	G.Buffer(make([]byte, 1000000), 1000000)
+	G.scanWidthAndHeight()
+	return G
+}
 
-	scanWidthAndHeight()
-
-	buildGraph()
+func main() {
+	G = GameFromIoReader(os.Stdin)
+	G.buildGraph()
+	debug(G.graph)
+	os.Exit(0)
 	for {
 		var myScore, opponentScore int
 		G.Scan()
