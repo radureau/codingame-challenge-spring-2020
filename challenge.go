@@ -160,6 +160,12 @@ func trackPacFreshness(current, before map[freshness]map[Pos]*Pac) (oldestFreshn
 				}
 			}
 			if !isInView {
+				if pac.abilityCooldown > 0 {
+					pac.abilityCooldown--
+				}
+				if pac.speedTurnsLeft > 0 {
+					pac.speedTurnsLeft--
+				}
 				m[pac.Pos] = pac
 			}
 		}
@@ -189,6 +195,9 @@ func trackPelletFreshness(current, before map[freshness]map[Pos]*Pellet) (oldest
 	for freshness, pellets := range before {
 		m := make(map[Pos]*Pellet)
 		for _, plt := range pellets {
+			if plt.Value == SuperPellet { // if not visible then it means it was eaten !
+				continue
+			}
 			isInView := false
 			for _, p := range current[0] {
 				if plt.Pos == p.Pos {
