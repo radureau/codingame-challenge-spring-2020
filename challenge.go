@@ -18,8 +18,9 @@ type Game struct {
 	height int // height: top left corner is (x=0, y=0)
 	graph  *Graph
 	*GameState
-	pastStates   []*GameState // from latest to oldest
-	scoreToReach ScorePoint
+	pastStates                 []*GameState // from latest to oldest
+	scoreToReach               ScorePoint
+	alliesCount, opponentCount int
 }
 
 // func (gs *GameState) String() string {
@@ -147,6 +148,10 @@ func trackPacFreshness(current, before map[freshness]map[Pos]*Pac) (oldestFreshn
 	for freshness, pacs := range before {
 		m := make(map[Pos]*Pac)
 		for _, pac := range pacs {
+			if pac.ally {
+				G.alliesCount--
+				continue // we lost a comrade: one of ours was killed! May he Rest In Peace †
+			}
 			isInView := false
 			for _, p := range current[0] {
 				if pac.PacID == p.PacID {
@@ -523,6 +528,8 @@ func GameFromIoReader(in io.Reader) *Game {
 // PlayFirstTurn _
 func (G *Game) PlayFirstTurn() {
 	G.ReadGameState()
+	G.alliesCount = len(G.Allies())
+	G.opponentCount = G.alliesCount
 }
 
 func main() {

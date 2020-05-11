@@ -141,6 +141,25 @@ func TestTrackPacFreshness(t *testing.T) {
 			},
 			expectedOldestFreshness: 3,
 		},
+		{
+			current: map[freshness]map[Pos]*Pac{
+				0: {
+					xy(0, 0): &Pac{PacID: PacID{ID: 1, ally: true}, Pos: xy(0, 0)},
+				},
+			},
+			before: map[freshness]map[Pos]*Pac{
+				0: {
+					xy(0, 0): &Pac{PacID: PacID{ID: 1, ally: true}, Pos: xy(0, 0)},
+					xy(0, 1): &Pac{PacID: PacID{ID: 2, ally: true}, Pos: xy(0, 1)},
+				},
+			},
+			expected: map[freshness]map[Pos]*Pac{
+				0: {
+					xy(0, 0): &Pac{PacID: PacID{ID: 1, ally: true}, Pos: xy(0, 0)},
+				},
+			},
+			expectedOldestFreshness: 0,
+		},
 	}
 	for i, tC := range testCases {
 		t.Run(string(i), func(t *testing.T) {
