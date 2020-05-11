@@ -124,6 +124,9 @@ type GameState struct {
 
 type turn int
 
+func (t turn) freshness() freshness { return freshness(G.turn - t) }
+func (f freshness) turn() turn      { return G.turn - turn(f) }
+
 // MaxTurn _
 const MaxTurn = turn(200)
 
