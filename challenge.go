@@ -138,6 +138,62 @@ func (gs *GameState) Allies() []*Pac {
 	return allies
 }
 
+// trackPacFreshness fill current freshness mapper from the one used in last turn
+// current holds the info with freshness = 0
+func trackPacFreshness(current, before map[freshness]map[Pos]*Pac) (oldestFreshness freshness) {
+	for freshness, pacs := range before {
+		m := make(map[Pos]*Pac)
+		for _, pac := range pacs {
+			isInView := false
+			for _, p := range current[0] {
+				if pac.PacID == p.PacID {
+					isInView = true
+					break
+				}
+			}
+			if !isInView {
+				m[pac.Pos] = pac
+			}
+		}
+		if len(m) > 0 {
+			freshness++
+			current[freshness] = m
+			if freshness > oldestFreshness {
+				oldestFreshness = freshness
+			}
+		}
+	}
+	return oldestFreshness
+}
+
+// trackPelletFreshness fill current freshness mapper from the one used in last turn
+// current holds the info with freshness = 0
+func trackPelletFreshness(current, before map[freshness]map[Pos]*Pellet) (oldestFreshness freshness) {
+	for freshness, pellets := range before {
+		m := make(map[Pos]*Pellet)
+		for _, plt := range pellets {
+			isInView := false
+			for _, p := range current[0] {
+				if plt.Pos == p.Pos {
+					isInView = true
+					break
+				}
+			}
+			if !isInView {
+				m[plt.Pos] = plt
+			}
+		}
+		if len(m) > 0 {
+			freshness++
+			current[freshness] = m
+			if freshness > oldestFreshness {
+				oldestFreshness = freshness
+			}
+		}
+	}
+	return oldestFreshness
+}
+
 // ReadGameState _
 func (G *Game) ReadGameState() {
 	if G.GameState == nil {
@@ -180,8 +236,11 @@ func (G *Game) ReadGameState() {
 			opnt.Pos = opnt.sym()
 			G.pacs[0][opnt.Pos] = &opnt
 		}
+		G.oldestPacFreshness = 0
 	} else {
-	} // update freshness
+		G.oldestPacFreshness = trackPacFreshness(G.pacs, G.before.pacs)
+		// todo: evict killed Pacs
+	}
 
 	G.Scan()
 	fmt.Sscan(G.Text(), &G.visiblePelletCount)
@@ -207,11 +266,14 @@ func (G *Game) ReadGameState() {
 				}
 			}
 		}
+		G.oldestPelletFresness = 0
 		G.scoreToReach = (ScorePoint(len(G.graph.cells)-len(G.pacs[0])-nSuperPellet)*NormalPellet+
 			ScorePoint(nSuperPellet)*SuperPellet)/
 			2 + 1
 	} else {
-	} // update freshness
+		G.oldestPelletFresness = trackPelletFreshness(G.pellets, G.before.pellets)
+		// todo: evict consumed pellets
+	}
 }
 
 func (G *Game) scanWidthAndHeight() {

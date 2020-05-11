@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -98,6 +99,57 @@ func TestGraph(t *testing.T) {
 	for i, tC := range testCases2 {
 		t.Run(fmt.Sprint(i, tC), func(t *testing.T) {
 			assert.Equal(t, tC.nLinkedWith, len(G.graph.cells[tC.Pos].linkedWith))
+		})
+	}
+}
+
+func TestTrackPacFreshness(t *testing.T) {
+	G = new(Game)
+	G.height = 5
+	G.width = 5
+
+	testCases := []struct {
+		current, before, expected map[freshness]map[Pos]*Pac
+		expectedOldestFreshness   freshness
+	}{
+		{
+			current: map[freshness]map[Pos]*Pac{
+				0: {
+					xy(0, 0): &Pac{PacID: PacID{ID: 1, ally: true}, Pos: xy(0, 0)},
+					xy(0, 1): &Pac{PacID: PacID{ID: 1, ally: false}, Pos: xy(0, 1)},
+				},
+			},
+			before: map[freshness]map[Pos]*Pac{
+				0: {
+					xy(0, 1): &Pac{PacID: PacID{ID: 1, ally: true}, Pos: xy(0, 1)},
+				},
+				1: {
+					xy(1, 1): &Pac{PacID: PacID{ID: 1, ally: false}, Pos: xy(1, 1)},
+				},
+				2: {
+					xy(4, 3): &Pac{PacID: PacID{ID: 2, ally: false}, Pos: xy(4, 3)},
+				},
+			},
+			expected: map[freshness]map[Pos]*Pac{
+				0: {
+					xy(0, 0): &Pac{PacID: PacID{ID: 1, ally: true}, Pos: xy(0, 0)},
+					xy(0, 1): &Pac{PacID: PacID{ID: 1, ally: false}, Pos: xy(0, 1)},
+				},
+				3: {
+					xy(4, 3): &Pac{PacID: PacID{ID: 2, ally: false}, Pos: xy(4, 3)},
+				},
+			},
+			expectedOldestFreshness: 3,
+		},
+	}
+	for i, tC := range testCases {
+		t.Run(string(i), func(t *testing.T) {
+			start := time.Now()
+			oldest := trackPacFreshness(tC.current, tC.before)
+			elapsed := time.Since(start)
+			fmt.Printf("trackPacFreshness took %s\n", elapsed)
+			assert.Equal(t, tC.expectedOldestFreshness, oldest)
+			assert.Equal(t, tC.expected, tC.current)
 		})
 	}
 }
