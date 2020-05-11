@@ -22,16 +22,30 @@ type Game struct {
 	scoreToReach ScorePoint
 }
 
+// func (gs *GameState) String() string {
+// 	return fmt.Sprintf("GameState#%d", gs.turn)
+// }
+
 func (G *Game) String() string {
+	s := G.GameState.String()
+	for _, gs := range G.pastStates {
+		s += "\n" + gs.String()
+	}
+	return s
+}
+
+// func (G *Game) String() string {
+func (gs *GameState) String() string {
+	// gs := G.GameState
 	s := ""
 	for y := 0; y < G.height; y++ {
 		runes := make([]rune, G.width)
 		for x := 0; x < G.width; x++ {
 			if cell, ok := G.graph.cells[xy(x, y)]; ok {
 				r := ' '
-				if pl, ok := G.pellets[0][cell.Pos]; ok {
+				if pl, ok := gs.pellets[0][cell.Pos]; ok {
 					r = pl.Rune()
-				} else if pac, ok := G.pacs[0][cell.Pos]; ok {
+				} else if pac, ok := gs.pacs[0][cell.Pos]; ok {
 					r = pac.Rune()
 				}
 				runes[x] = r
@@ -68,7 +82,7 @@ func (s Shifumi) String() string {
 
 // Rune for debug purpose
 func (s Shifumi) Rune() rune {
-	return []rune{0x270A, 0x270B, 0x270C}[s]
+	return []rune{'✊', '✋', '✌'}[s]
 }
 
 // Pac _
@@ -80,13 +94,17 @@ type Pac struct {
 	abilityCooldown turn
 }
 
-// Rune for debug purpose
+// Rune UPPERCASE means ally
 func (p Pac) Rune() rune {
-	var r = []rune{'p', 'f', 'c'}[p.Shifumi]
-	if p.ally {
-		r -= 32
+	r := []rune{'𝑃', '𝐹', '𝐶'}[p.Shifumi]
+	if !p.ally {
+		r -= 26
 	}
 	return r
+	// if p.ally {
+	// 	return '@'
+	// }
+	// return '&'
 }
 
 // GameState _
@@ -102,10 +120,6 @@ type GameState struct {
 	oldestPacFreshness   freshness
 	pellets              map[freshness]map[Pos]*Pellet
 	oldestPelletFresness freshness
-}
-
-func (gs *GameState) String() string {
-	return fmt.Sprintf("GameState#%d", gs.turn)
 }
 
 type turn int
@@ -386,9 +400,10 @@ type Pellet struct {
 func (pl Pellet) Rune() rune {
 	switch pl.Value {
 	case SuperPellet:
-		return 0x2318
+		return 'x'
+		// return 0x2318
 	default:
-		return '.'
+		return '·'
 	}
 }
 
@@ -431,12 +446,12 @@ func main() {
 	G.buildGraph()
 
 	G.PlayFirstTurn()
-	fmt.Println(G)
-	os.Exit(0)
+	// os.Exit(0)
 	for {
 		G.ReadGameState()
 		// fmt.Fprintln(os.Stderr, "Debug messages...")
 		fmt.Println("MOVE 0 15 10") // MOVE <pacID> <x> <y>
 		break
 	}
+	fmt.Println(G)
 }
