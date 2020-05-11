@@ -166,6 +166,15 @@ func trackPacFreshness(current, before map[freshness]map[Pos]*Pac) (oldestFreshn
 	return oldestFreshness
 }
 
+func untrackPelletAt(pos Pos) {
+	for _, m := range G.pellets {
+		if _, ok := m[pos]; ok {
+			delete(m, pos)
+			break
+		}
+	}
+}
+
 // trackPelletFreshness fill current freshness mapper from the one used in last turn
 // current holds the info with freshness = 0
 func trackPelletFreshness(current, before map[freshness]map[Pos]*Pellet) (oldestFreshness freshness) {
@@ -272,7 +281,16 @@ func (G *Game) ReadGameState() {
 			2 + 1
 	} else {
 		G.oldestPelletFresness = trackPelletFreshness(G.pellets, G.before.pellets)
-		// todo: evict consumed pellets
+		// evict consumed pellets
+		for _, pac := range G.Allies() {
+			cell := G.graph.cells[pac.Pos]
+			untrackPelletAt(cell.Pos)
+			for pos := range cell.linkedWith {
+				if G.pellets[0][pos].Value == Nought {
+					untrackPelletAt(pos)
+				}
+			}
+		}
 	}
 }
 
@@ -448,6 +466,7 @@ type ScorePoint int
 const (
 	NormalPellet = ScorePoint(1)
 	SuperPellet  = ScorePoint(10)
+	Nought       = ScorePoint(0)
 )
 
 type freshness int
