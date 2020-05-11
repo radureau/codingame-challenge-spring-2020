@@ -44,9 +44,16 @@ func (gs *GameState) String() string {
 		for x := 0; x < G.width; x++ {
 			if cell, ok := G.graph.cells[xy(x, y)]; ok {
 				r := ' '
-				if pl, ok := gs.pellets[0][cell.Pos]; ok {
-					r = pl.Rune()
-				} else if pac, ok := gs.pacs[0][cell.Pos]; ok {
+				for f, m := range gs.pellets {
+					if pl, ok := m[cell.Pos]; ok {
+						if f == 0 {
+							r = pl.Rune()
+						} else {
+							r = '?'
+						}
+					}
+				}
+				if pac, ok := gs.pacs[0][cell.Pos]; ok {
 					r = pac.Rune()
 				}
 				runes[x] = r
