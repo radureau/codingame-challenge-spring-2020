@@ -369,11 +369,14 @@ func (nflc influence) at(t turn) []*Cell {
 }
 func (nflc influence) contains(pos, from Pos, at turn) {}
 
+type path []*Cell
+
 // Graph _
 type Graph struct {
 	cells      map[Pos]*Cell
-	positions  []Pos // sorted
-	dists      map[Move]Dist
+	positions  []Pos                     // sorted
+	dists      map[Move]Dist             // without any bumps
+	paths      map[Move]path             // without any bumps
 	influences [Nspeed]map[Pos]influence // influences with speed1 at index 0 and influences with speed2 at index 1
 }
 
@@ -382,8 +385,9 @@ func NewGraph(capacity int) *Graph {
 	g := new(Graph)
 	g.cells = make(map[Pos]*Cell, capacity)
 	g.positions = make([]Pos, 0, capacity)
-	g.dists = map[Move]Dist{}
-	g.influences = [Nspeed]map[Pos]influence{make(map[Pos]influence), make(map[Pos]influence)}
+	g.dists = make(map[Move]Dist, capacity)
+	g.paths = make(map[Move]path, capacity)
+	g.influences = [Nspeed]map[Pos]influence{make(map[Pos]influence, capacity), make(map[Pos]influence, capacity)}
 	return g
 }
 func (g *Graph) createCell(x, y int) {
@@ -410,12 +414,6 @@ func (g Graph) linkTogether() {
 				current, ok = g.cells[current.ToDirection(dir)]
 			}
 		}
-	}
-}
-func (g Graph) writeDistance(c1, c2 *Cell, dist Dist) {
-	if _, ok := g.dists[move(c1, c2)]; !ok {
-		g.dists[move(c1, c2)] = dist
-		g.dists[move(c2, c1)] = dist
 	}
 }
 func (g Graph) breadthFirstSearch(compute func(cell *Cell, visited map[Pos]*Cell)) {
@@ -448,14 +446,38 @@ func (g Graph) computeDistances() {
 			_, ok := visited[c.Pos]
 			return ok
 		}
+		g.paths[move(cell, cell)] = make(path, 0)
+		ifl1, ifl2 := make(influence), make(influence)
+		g.influences[speed1][cell.Pos] = ifl1
+		g.influences[speed2][cell.Pos] = ifl2
+		ifl1.addCell(turn(0), cell)
+		ifl2.addCell(turn(0), cell)
 		for _, neighbour := range cell.neighbours {
-			g.writeDistance(cell, neighbour, Dist(1))
+			g.dists[move(cell, neighbour)] = Dist(1)
+			g.dists[move(neighbour, cell)] = Dist(1)
+			if _, ok := g.paths[move(cell, neighbour)]; !ok {
+				g.paths[move(cell, neighbour)] = path{neighbour}
+			}
+			if _, ok := g.paths[move(neighbour, cell)]; !ok {
+				g.paths[move(neighbour, cell)] = path{cell}
+			}
 			if wasVisited(neighbour) {
 				for _, c := range visited {
-					if cell.Pos != c.Pos {
-						g.writeDistance(cell, c, g.dists[move(neighbour, c)]+1)
+					if c.Pos != cell.Pos && c.Pos != neighbour.Pos {
+						nDist := g.dists[move(neighbour, c)] + 1
+						g.dists[move(cell, c)] = nDist
+						g.dists[move(c, cell)] = nDist
+						if _, ok := g.paths[move(cell, c)]; !ok {
+							if nPath, ok := g.paths[move(neighbour, c)]; ok {
+								g.paths[move(cell, c)] = append(path{neighbour}, nPath...)
+								g.paths[move(c, cell)] = append(g.paths[move(c, neighbour)], cell)
+							}
+						}
 					}
 				}
+				// g.paths[move(cell, c)] = append(g.paths[move(cell, neighbour)], nPath...)
+				// nPath := g.paths[move(neighbour, c)]
+				// g.paths[move(c, cell)] = append(g.paths[move(c, neighbour)], cell)
 			}
 		}
 	}

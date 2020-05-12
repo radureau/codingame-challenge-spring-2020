@@ -78,7 +78,7 @@ func TestGraph(t *testing.T) {
 		{Move{xy(0, 1), xy(3, 1)}, Dist(2)},
 		{Move{xy(1, 1), xy(0, 1)}, Dist(1)},
 		{Move{xy(1, 1), xy(4, 1)}, Dist(2)},
-		{Move{xy(3, 2), xy(0, 1)}, Dist(3)},
+		{Move{xy(3, 2), xy(0, 1)}, Dist(4)},
 		{Move{xy(3, 2), xy(3, 2)}, Dist(0)},
 	}
 	for i, tC := range testCases {
@@ -104,6 +104,22 @@ func TestGraph(t *testing.T) {
 	C := G.graph.cells
 
 	testCases3 := []struct {
+		Move
+		expected path
+	}{
+		{move(C[xy(2, 2)], C[xy(2, 2)]), path{}},
+		{move(C[xy(2, 2)], C[xy(3, 2)]), path{C[xy(3, 2)]}},
+		{move(C[xy(2, 2)], C[xy(3, 1)]), path{C[xy(3, 2)], C[xy(3, 1)]}},
+		{move(C[xy(3, 1)], C[xy(2, 2)]), path{C[xy(3, 2)], C[xy(2, 2)]}},
+		{move(C[xy(4, 1)], C[xy(0, 1)]), path{C[xy(0, 1)]}},
+	}
+	for i, tC := range testCases3 {
+		t.Run(fmt.Sprint(i, tC), func(t *testing.T) {
+			assert.Equal(t, tC.expected, G.graph.paths[tC.Move])
+		})
+	}
+
+	testCases4 := []struct {
 		Pos
 		speed
 		expected influence
@@ -144,7 +160,7 @@ func TestGraph(t *testing.T) {
 			},
 		},
 	}
-	for i, tC := range testCases3 {
+	for i, tC := range testCases4 {
 		t.Run(fmt.Sprintf("%d:\tinfluence from %v with speed %d", i, tC.Pos, tC.speed), func(t *testing.T) {
 			assert.Equal(t, tC.expected, G.graph.influences[tC.speed][tC.Pos])
 		})
