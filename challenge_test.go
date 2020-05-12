@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -212,10 +211,7 @@ func TestTrackPacFreshness(t *testing.T) {
 	}
 	for i, tC := range testCases {
 		t.Run(string(i), func(t *testing.T) {
-			start := time.Now()
 			oldest := trackPacFreshness(tC.current, tC.before)
-			elapsed := time.Since(start)
-			fmt.Printf("trackPacFreshness took %s\n", elapsed)
 			assert.Equal(t, tC.expectedOldestFreshness, oldest)
 			assert.Equal(t, tC.expected, tC.current)
 		})

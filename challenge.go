@@ -351,8 +351,12 @@ func (G *Game) buildGraph() {
 
 type speed int
 
-const speed1 = speed(1)
-const speed2 = speed(2)
+const (
+	speed1 speed = iota
+	speed2
+	// Nspeed number of speeds
+	Nspeed
+)
 
 // influence: from a position, in how many turns can I get to how many cells (ordered by dist) ?
 type influence map[turn][]*Cell
@@ -370,7 +374,7 @@ type Graph struct {
 	cells      map[Pos]*Cell
 	positions  []Pos // sorted
 	dists      map[Move]Dist
-	influences [speed2]map[Pos]influence // influences with speed1 at index 0 and influences with speed2 at index 1
+	influences [Nspeed]map[Pos]influence // influences with speed1 at index 0 and influences with speed2 at index 1
 }
 
 // NewGraph _
@@ -379,7 +383,7 @@ func NewGraph(capacity int) *Graph {
 	g.cells = make(map[Pos]*Cell, capacity)
 	g.positions = make([]Pos, 0, capacity)
 	g.dists = map[Move]Dist{}
-	g.influences = [speed2]map[Pos]influence{make(map[Pos]influence), make(map[Pos]influence)}
+	g.influences = [Nspeed]map[Pos]influence{make(map[Pos]influence), make(map[Pos]influence)}
 	return g
 }
 func (g *Graph) createCell(x, y int) {
