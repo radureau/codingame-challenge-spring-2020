@@ -363,7 +363,7 @@ func (nflc influence) addCell(at turn, cells ...*Cell) {
 func (nflc influence) at(t turn) []*Cell {
 	return nflc[t]
 }
-func (nflc influence) contains(pos, from Pos, at turn)
+func (nflc influence) contains(pos, from Pos, at turn) {}
 
 // Graph _
 type Graph struct {

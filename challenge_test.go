@@ -101,6 +101,55 @@ func TestGraph(t *testing.T) {
 			assert.Equal(t, tC.nLinkedWith, len(G.graph.cells[tC.Pos].linkedWith))
 		})
 	}
+
+	C := G.graph.cells
+
+	testCases3 := []struct {
+		Pos
+		speed
+		expected influence
+	}{
+		{
+			Pos: xy(2, 2), speed: speed1,
+			// #####
+			// 95#37
+			// #201#
+			// #6#4#
+			// ²O#8¹
+			// #####
+			expected: influence{
+				turn(0): {C[xy(2, 2)]}, // 0
+				turn(1): {C[xy(2, 2)],
+					C[xy(3, 2)], C[xy(1, 2)]}, // 1 2
+				turn(2): {C[xy(2, 2)],
+					C[xy(3, 2)], C[xy(1, 2)],
+					C[xy(3, 1)], C[xy(3, 3)], C[xy(1, 1)], C[xy(1, 3)]}, // 3 4 5 6
+				turn(3): {C[xy(3, 3)],
+					C[xy(3, 2)], C[xy(1, 2)],
+					C[xy(3, 1)], C[xy(3, 3)], C[xy(1, 1)], C[xy(1, 3)],
+					C[xy(4, 1)], C[xy(3, 4)], C[xy(0, 1)], C[xy(1, 4)]}, // 7 8 9 O
+			},
+		},
+		{
+			Pos: xy(2, 2), speed: speed2,
+			expected: influence{
+				turn(0): {C[xy(2, 2)]}, // 0
+				turn(1): {C[xy(2, 2)],
+					C[xy(3, 2)], C[xy(1, 2)], // 1 2
+					C[xy(3, 1)], C[xy(3, 3)], C[xy(1, 1)], C[xy(1, 3)]}, // 3 4 5 6
+				turn(2): {C[xy(3, 3)],
+					C[xy(3, 2)], C[xy(1, 2)],
+					C[xy(3, 1)], C[xy(3, 3)], C[xy(1, 1)], C[xy(1, 3)],
+					C[xy(4, 1)], C[xy(3, 4)], C[xy(0, 1)], C[xy(1, 4)], // 7 8 9 O
+					C[xy(4, 4)], C[xy(0, 4)]}, // ¹ ²
+			},
+		},
+	}
+	for i, tC := range testCases3 {
+		t.Run(fmt.Sprintf("%d:\tinfluence from %v with speed %d", i, tC.Pos, tC.speed), func(t *testing.T) {
+			assert.Equal(t, tC.expected, G.graph.influences[tC.speed][tC.Pos])
+		})
+	}
 }
 
 func TestTrackPacFreshness(t *testing.T) {
