@@ -5,10 +5,20 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 )
 
 func debug(args ...interface{}) {
 	fmt.Fprintln(os.Stderr, args...)
+}
+
+func printElapsedTime(name string) func() {
+	start := time.Now()
+	return func() {
+		elapsed := time.Since(start)
+		// codingame environment seems to multiply cpu time by a factor of 4
+		debug(fmt.Sprintf("\t%s\ttook %dms", name, elapsed.Milliseconds()*4))
+	}
 }
 
 // Game _
@@ -229,6 +239,7 @@ func trackPelletFreshness(current, before map[freshness]map[Pos]*Pellet) (oldest
 
 // ReadGameState _
 func (G *Game) ReadGameState() {
+	defer printElapsedTime("ReadGameState")()
 	if G.GameState == nil {
 		G.GameState = &GameState{Game: G, turn: 1}
 		G.pastStates = make([]*GameState, 0, MaxTurn-1)
@@ -323,6 +334,7 @@ func (G *Game) scanWidthAndHeight() {
 	fmt.Sscan(G.Text(), &G.width, &G.height)
 }
 func (G *Game) buildGraph() {
+	defer printElapsedTime("buildGraph")()
 	G.graph = NewGraph(G.width * G.height)
 	for y := 0; y < G.height; y++ {
 		G.Scan()
@@ -337,11 +349,28 @@ func (G *Game) buildGraph() {
 	G.graph.computeDistances()
 }
 
+type speed int
+
+const speed1 = speed(1)
+const speed2 = speed(2)
+
+// influence: from a position, in how many turns can I get to how many cells (ordered by dist) ?
+type influence map[turn][]*Cell
+
+func (nflc influence) addCell(at turn, cells ...*Cell) {
+	nflc[at] = append(nflc[at], cells...)
+}
+func (nflc influence) at(t turn) []*Cell {
+	return nflc[t]
+}
+func (nflc influence) contains(pos, from Pos, at turn)
+
 // Graph _
 type Graph struct {
-	cells     map[Pos]*Cell
-	positions []Pos // sorted
-	dists     map[Move]Dist
+	cells      map[Pos]*Cell
+	positions  []Pos // sorted
+	dists      map[Move]Dist
+	influences [speed2]map[Pos]influence // influences with speed1 at index 0 and influences with speed2 at index 1
 }
 
 // NewGraph _
@@ -350,6 +379,7 @@ func NewGraph(capacity int) *Graph {
 	g.cells = make(map[Pos]*Cell, capacity)
 	g.positions = make([]Pos, 0, capacity)
 	g.dists = map[Move]Dist{}
+	g.influences = [speed2]map[Pos]influence{make(map[Pos]influence), make(map[Pos]influence)}
 	return g
 }
 func (g *Graph) createCell(x, y int) {
@@ -543,6 +573,7 @@ func GameFromIoReader(in io.Reader) *Game {
 
 // PlayFirstTurn _
 func (G *Game) PlayFirstTurn() {
+	defer printElapsedTime("PlayFirstTurn")()
 	G.ReadGameState()
 	G.alliesCount = len(G.Allies())
 	G.opponentCount = G.alliesCount
@@ -553,6 +584,7 @@ func main() {
 	G.buildGraph()
 
 	G.PlayFirstTurn()
+	fmt.Println("MOVE 0 15 10")
 	// os.Exit(0)
 	for {
 		G.ReadGameState()
