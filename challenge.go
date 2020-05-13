@@ -346,7 +346,7 @@ func (G *Game) buildGraph() {
 		}
 	}
 	G.graph.linkTogether()
-	G.graph.computeDistances()
+	G.graph.compute()
 }
 
 type speed int
@@ -361,13 +361,20 @@ const (
 // influence: from a position, in how many turns can I get to how many cells (ordered by dist) ?
 type influence map[turn][]*Cell
 
-func (nflc influence) addCell(at turn, cells ...*Cell) {
+func (nflc influence) addCells(at turn, cells ...*Cell) {
 	nflc[at] = append(nflc[at], cells...)
 }
 func (nflc influence) at(t turn) []*Cell {
 	return nflc[t]
 }
-func (nflc influence) contains(pos, from Pos, at turn) {}
+func (nflc influence) containsCell(at turn, cell *Cell) bool {
+	for _, c := range nflc[at] {
+		if c.Pos == cell.Pos {
+			return true
+		}
+	}
+	return false
+}
 
 type path []*Cell
 
@@ -416,42 +423,52 @@ func (g Graph) linkTogether() {
 		}
 	}
 }
-func (g Graph) breadthFirstSearch(compute func(cell *Cell, visited map[Pos]*Cell)) {
-	visited := make(map[Pos]*Cell, len(g.cells))
+func (g Graph) breadthFirstSearch(from *Cell, compute func(cell *Cell, dist Dist, visited []*Cell)) {
+	visited := make([]*Cell, 0, len(g.cells))
 	markAsVisited := func(c *Cell) {
-		visited[c.Pos] = c
+		visited = append(visited, c)
 	}
-	wasVisited := func(c *Cell) bool {
-		_, ok := visited[c.Pos]
-		return ok
+	wasVisited := func(cell *Cell) bool {
+		for _, c := range visited {
+			if c.Pos == cell.Pos {
+				return true
+			}
+		}
+		return false
 	}
-	start := g.cells[Pos(g.positions[0])]
+	start := from
+	if start == nil {
+		start = g.cells[Pos(g.positions[0])]
+	}
 	markAsVisited(start)
-	toVisit := []*Cell{start}
-	for len(toVisit) > 0 {
-		var current *Cell
-		current, toVisit = toVisit[0], toVisit[1:]
-		compute(current, visited)
+	type toVisit struct {
+		*Cell
+		Dist
+	}
+	visits := []toVisit{{start, 0}}
+	for len(visits) > 0 {
+		var current toVisit
+		current, visits = visits[0], visits[1:]
+		compute(current.Cell, current.Dist, visited)
 		for _, c := range current.neighbours {
 			if !wasVisited(c) {
 				markAsVisited(c)
-				toVisit = append(toVisit, c)
+				visits = append(visits, toVisit{c, current.Dist + 1})
 			}
 		}
 	}
 }
-func (g Graph) computeDistances() {
-	compute := func(cell *Cell, visited map[Pos]*Cell) {
-		wasVisited := func(c *Cell) bool {
-			_, ok := visited[c.Pos]
-			return ok
+func (g Graph) compute() {
+	compute := func(cell *Cell, _ Dist, visited []*Cell) {
+		wasVisited := func(cell *Cell) bool {
+			for _, c := range visited {
+				if c.Pos == cell.Pos {
+					return true
+				}
+			}
+			return false
 		}
 		g.paths[move(cell, cell)] = make(path, 0)
-		ifl1, ifl2 := make(influence), make(influence)
-		g.influences[speed1][cell.Pos] = ifl1
-		g.influences[speed2][cell.Pos] = ifl2
-		ifl1.addCell(turn(0), cell)
-		ifl2.addCell(turn(0), cell)
 		for _, neighbour := range cell.neighbours {
 			g.dists[move(cell, neighbour)] = Dist(1)
 			g.dists[move(neighbour, cell)] = Dist(1)
@@ -475,19 +492,24 @@ func (g Graph) computeDistances() {
 						}
 					}
 				}
-				// g.paths[move(cell, c)] = append(g.paths[move(cell, neighbour)], nPath...)
-				// nPath := g.paths[move(neighbour, c)]
-				// g.paths[move(c, cell)] = append(g.paths[move(c, neighbour)], cell)
 			}
 		}
 	}
-	g.breadthFirstSearch(compute)
-	// i := 0
-	// g.breadthFirstSearch(func(cell *Cell, _ map[Pos]*Cell) {
-	// 	i++
-	// 	debug(i, cell.Pos)
-	// })
-	// debug(len(g.cells))
+	g.breadthFirstSearch(nil, compute)
+	for _, cell := range g.cells {
+		lastDist := Dist(-1)
+		g.breadthFirstSearch(cell, func(c *Cell, dist Dist, visited []*Cell) {
+			g.influences[speed1][cell.Pos] = influence{0: {cell}, 1: append([]*Cell{cell}, cell.neighbours...)}
+			if lastDist == dist-1 {
+				lastDist = dist
+				t := turn(dist)
+				if cell.Pos == xy(2, 2) {
+					fmt.Println(visited)
+				}
+				g.influences[speed1][cell.Pos][t-1] = append(visited)
+			}
+		})
+	}
 }
 
 // Dist _

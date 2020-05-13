@@ -9,6 +9,36 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func ExampleGraph_breadthFirstSearch() {
+	input, err := os.Open("simple.txt")
+	if err != nil {
+		panic(err)
+	}
+	G = GameFromIoReader(input)
+	G.buildGraph()
+	i := 0
+	G.graph.breadthFirstSearch(nil, func(cell *Cell, dist Dist, _ []*Cell) {
+		i++
+		fmt.Println(i, cell.Pos, dist)
+	})
+	fmt.Println(len(G.graph.cells))
+	//Output:
+	// 1 (0,1) 0
+	// 2 (1,1) 1
+	// 3 (4,1) 1
+	// 4 (1,2) 2
+	// 5 (3,1) 2
+	// 6 (1,3) 3
+	// 7 (2,2) 3
+	// 8 (3,2) 3
+	// 9 (1,4) 4
+	// 10 (3,3) 4
+	// 11 (0,4) 5
+	// 12 (3,4) 5
+	// 13 (4,4) 6
+	// 13
+}
+
 func TestPos(t *testing.T) {
 	G = new(Game)
 	G.height = 3
@@ -118,8 +148,16 @@ func TestGraph(t *testing.T) {
 			assert.Equal(t, tC.expected, G.graph.paths[tC.Move])
 		})
 	}
+}
 
-	testCases4 := []struct {
+func TestInfluence(t *testing.T) {
+	input, err := os.Open("simple.txt")
+	assert.NoError(t, err)
+	G = GameFromIoReader(input)
+	G.buildGraph()
+	C := G.graph.cells
+
+	testCases := []struct {
 		Pos
 		speed
 		expected influence
@@ -136,13 +174,13 @@ func TestGraph(t *testing.T) {
 				turn(0): {C[xy(2, 2)]}, // 0
 				turn(1): {C[xy(2, 2)],
 					C[xy(3, 2)], C[xy(1, 2)]}, // 1 2
-				turn(2): {C[xy(2, 2)],
-					C[xy(3, 2)], C[xy(1, 2)],
-					C[xy(3, 1)], C[xy(3, 3)], C[xy(1, 1)], C[xy(1, 3)]}, // 3 4 5 6
-				turn(3): {C[xy(3, 3)],
-					C[xy(3, 2)], C[xy(1, 2)],
-					C[xy(3, 1)], C[xy(3, 3)], C[xy(1, 1)], C[xy(1, 3)],
-					C[xy(4, 1)], C[xy(3, 4)], C[xy(0, 1)], C[xy(1, 4)]}, // 7 8 9 O
+				// turn(2): {C[xy(2, 2)],
+				// 	C[xy(3, 2)], C[xy(1, 2)],
+				// 	C[xy(3, 1)], C[xy(3, 3)], C[xy(1, 1)], C[xy(1, 3)]}, // 3 4 5 6
+				// turn(3): {C[xy(3, 3)],
+				// 	C[xy(3, 2)], C[xy(1, 2)],
+				// 	C[xy(3, 1)], C[xy(3, 3)], C[xy(1, 1)], C[xy(1, 3)],
+				// 	C[xy(4, 1)], C[xy(3, 4)], C[xy(0, 1)], C[xy(1, 4)]}, // 7 8 9 O
 			},
 		},
 		{
@@ -160,8 +198,8 @@ func TestGraph(t *testing.T) {
 			},
 		},
 	}
-	for i, tC := range testCases4 {
-		t.Run(fmt.Sprintf("%d:\tinfluence from %v with speed %d", i, tC.Pos, tC.speed), func(t *testing.T) {
+	for i, tC := range testCases {
+		t.Run(fmt.Sprintf("%d:\tinfluence from %v with speed %d", i, tC.Pos, tC.speed+1), func(t *testing.T) {
 			assert.Equal(t, tC.expected, G.graph.influences[tC.speed][tC.Pos])
 		})
 	}
