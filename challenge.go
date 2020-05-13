@@ -497,16 +497,17 @@ func (g Graph) compute() {
 	}
 	g.breadthFirstSearch(nil, compute)
 	for _, cell := range g.cells {
-		lastDist := Dist(-1)
+		lastDist := Dist(1)
+		g.influences[speed1][cell.Pos] = influence{0: {cell}, 1: append([]*Cell{cell}, cell.neighbours...)}
+		g.influences[speed2][cell.Pos] = influence{0: {cell}}
 		g.breadthFirstSearch(cell, func(c *Cell, dist Dist, visited []*Cell) {
-			g.influences[speed1][cell.Pos] = influence{0: {cell}, 1: append([]*Cell{cell}, cell.neighbours...)}
 			if lastDist == dist-1 {
 				lastDist = dist
 				t := turn(dist)
-				if cell.Pos == xy(2, 2) {
-					fmt.Println(visited)
+				if t%2 == 0 {
+					g.influences[speed2][cell.Pos][t/2] = append(visited)
 				}
-				g.influences[speed1][cell.Pos][t-1] = append(visited)
+				g.influences[speed1][cell.Pos][t] = append(visited)
 			}
 		})
 	}
