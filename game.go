@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 // Game _
@@ -58,6 +59,20 @@ func (G *Game) PlayFirstTurn() {
 	G.ReadGameState()
 	G.alliesCount = len(G.Allies())
 	G.opponentCount = G.alliesCount
+	G.Play()
+}
+
+// Play _
+func (G *Game) Play() {
+	moves := make([]string, 0, 5)
+	for _, ally := range G.Allies() {
+		moves = append(moves, fmt.Sprintf("%s %d %v",
+			"MOVE",
+			ally.ID,
+			"15 10",
+		)) // MOVE <pacID> <x> <y>
+	}
+	fmt.Println(strings.Join(moves, "|"))
 }
 
 func main() {
@@ -65,14 +80,14 @@ func main() {
 	G.buildGraph()
 
 	G.PlayFirstTurn()
-	fmt.Println("MOVE 0 15 10")
-	if os.Getenv("USER") == os.Getenv("LOGNAME") {
-		fmt.Println(G)
-		os.Exit(0)
+	if os.Getenv("USER") == "gabrielradureau" {
+		fmt.Println(G.GameState)
 	}
 	for {
 		G.ReadGameState()
-		// fmt.Fprintln(os.Stderr, "Debug messages...")
-		fmt.Println("MOVE 0 15 10") // MOVE <pacID> <x> <y>
+		G.Play()
+		if os.Getenv("USER") == "gabrielradureau" {
+			fmt.Println(G.GameState)
+		}
 	}
 }

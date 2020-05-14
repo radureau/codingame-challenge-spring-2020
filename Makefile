@@ -11,3 +11,6 @@ endif
 define install_gocat
 	GO111MODULE=off go get github.com/naegelejd/gocat
 endef
+
+readASample:
+	cp mapReader.go.backup dist/response.go 

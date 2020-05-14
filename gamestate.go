@@ -109,7 +109,6 @@ func trackPelletFreshness(current, before map[freshness]map[Pos]*Pellet) (oldest
 
 // ReadGameState _
 func (G *Game) ReadGameState() {
-	defer printElapsedTime("ReadGameState")()
 	if G.GameState == nil {
 		G.GameState = &GameState{Game: G, turn: 1}
 		G.pastStates = make([]*GameState, 0, MaxTurn-1)

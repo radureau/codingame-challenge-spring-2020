@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strings"
 )
 
 func debug(args ...interface{}) {
@@ -33,54 +34,66 @@ func main() {
 	}
 	// ---
 
-	var myScore, opponentScore int
-	scanner.Scan()
-	line = scanner.Text()
-	fmt.Sscan(line, &myScore, &opponentScore)
-	debug(line)
-	// visiblePacCount: all your pacs and enemy pacs in sight
-	var visiblePacCount int
-	scanner.Scan()
-	line = scanner.Text()
-	fmt.Sscan(line, &visiblePacCount)
-	debug(line)
-
-	for i := 0; i < visiblePacCount; i++ {
-		// pacId: pac number (unique within a team)
-		// mine: true if this pac is yours
-		// x: position in the grid
-		// y: position in the grid
-		// typeId: unused in wood leagues
-		// speedTurnsLeft: unused in wood leagues
-		// abilityCooldown: unused in wood leagues
-		var pacId int
-		var mine bool
-		var _mine int
-		var x, y int
-		var typeId string
-		var speedTurnsLeft, abilityCooldown int
+	nAllies := 0
+	readTurn := func() {
+		var myScore, opponentScore int
 		scanner.Scan()
 		line = scanner.Text()
-		fmt.Sscan(line, &pacId, &_mine, &x, &y, &typeId, &speedTurnsLeft, &abilityCooldown)
-		mine = _mine != 0
-		_ = mine
+		fmt.Sscan(line, &myScore, &opponentScore)
 		debug(line)
-	}
-	// visiblePelletCount: all pellets in sight
-	var visiblePelletCount int
-	scanner.Scan()
-	line = scanner.Text()
-	fmt.Sscan(line, &visiblePelletCount)
-	debug(line)
-	for i := 0; i < visiblePelletCount; i++ {
-		// value: amount of points this pellet is worth
-		var x, y, value int
+		// visiblePacCount: all your pacs and enemy pacs in sight
+		var visiblePacCount int
 		scanner.Scan()
 		line = scanner.Text()
-		fmt.Sscan(line, &x, &y, &value)
+		fmt.Sscan(line, &visiblePacCount)
 		debug(line)
+
+		nAllies = 0
+		for i := 0; i < visiblePacCount; i++ {
+			// pacId: pac number (unique within a team)
+			// mine: true if this pac is yours
+			// x: position in the grid
+			// y: position in the grid
+			// typeId: unused in wood leagues
+			// speedTurnsLeft: unused in wood leagues
+			// abilityCooldown: unused in wood leagues
+			var pacId int
+			var mine bool
+			var _mine int
+			var x, y int
+			var typeId string
+			var speedTurnsLeft, abilityCooldown int
+			scanner.Scan()
+			line = scanner.Text()
+			fmt.Sscan(line, &pacId, &_mine, &x, &y, &typeId, &speedTurnsLeft, &abilityCooldown)
+			mine = _mine != 0
+			nAllies += _mine
+			_ = mine
+			debug(line)
+		}
+		// visiblePelletCount: all pellets in sight
+		var visiblePelletCount int
+		scanner.Scan()
+		line = scanner.Text()
+		fmt.Sscan(line, &visiblePelletCount)
+		debug(line)
+		for i := 0; i < visiblePelletCount; i++ {
+			// value: amount of points this pellet is worth
+			var x, y, value int
+			scanner.Scan()
+			line = scanner.Text()
+			fmt.Sscan(line, &x, &y, &value)
+			debug(line)
+		}
 	}
 
-	// fmt.Fprintln(os.Stderr, "Debug messages...")
-	fmt.Println("MOVE 0 15 10") // MOVE <pacId> <x> <y>
+	for {
+		readTurn()
+		// fmt.Fprintln(os.Stderr, "Debug messages...")
+		moves := make([]string,nAllies)
+		for i := range moves {
+			moves[i] = fmt.Sprintf("MOVE %d 15 10", i)
+		}
+		fmt.Println(strings.Join(moves,"|")) // MOVE <pacId> <x> <y>
+	}
 }
