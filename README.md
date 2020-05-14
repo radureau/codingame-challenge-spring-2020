@@ -1,0 +1,44 @@
+# Work in progress
+
+### 'food for thoughts'
+* https://en.wikipedia.org/wiki/Biconnected_component
+* https://en.wikipedia.org/wiki/Iterative_deepening_depth-first_search
+* https://en.wikipedia.org/wiki/Depth-first_search#Vertex_orderings
+
+### Decision making
+
+- #Node = #Cell - #Wall = #Space
+- #Pac0 = #Ally0 * 2
+- #Pellet0 = #Node - #Pac0 - #Cherry0
+- #ScorePt0 = #Pellet0 + #Cherry0*10
+- ScoreTarget = #ScorePt0 - MyScore - OpntScore +1
+- MyProgress = MyScore*100/ScoreTarget
+- OpntProgress = OpntScore*100/ScoreTarget
+- GameProgress = Game.Turn*100/200 = Game.Turn/2
+
+### Before hand
+
+- [x] Build Graph -> Invariable  
+- [x] Map Node Distances -> Invariable  
+- [x] Map Node with reached Nodes given a time and velocity -> Invariable  
+- [ ] Find cut vertices -> Invariable  
+- [x] Initialize Fog of War (track pellets/cherries status and opponents potential positions) -> Variable  
+
+### Attribute Score to a move
+Given  
+- _a Fog of War state_
+- _MyProgress_
+- _OpntProgress_
+- _GameProgress_
+
+**[go over](https://en.wikipedia.org/wiki/Iterative_deepening_depth-first_search) next possibilities and score them with these indicators:**
+- [x] Any cherry left ?  
+- [ ] How many pellet can I eat  
+- [ ] How many pellet can I discover  
+- [ ] How many ally can I encounter  
+- [ ] How many opponents can I encounter  
+- [ ] How much fog of war can I decrease  
+
+
+### Decide between SWITCH SPEED MOVE
+#Cooldown ?
