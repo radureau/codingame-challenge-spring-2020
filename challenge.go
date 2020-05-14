@@ -52,10 +52,10 @@ func (gs *GameState) String() string {
 	for y := 0; y < G.height; y++ {
 		runes := make([]rune, G.width)
 		for x := 0; x < G.width; x++ {
-			if cell, ok := G.graph.cells[xy(x, y)]; ok {
+			if node, ok := G.graph.cells[xy(x, y)]; ok {
 				r := ' '
 				for f, m := range gs.pellets {
-					if pl, ok := m[cell.Pos]; ok {
+					if pl, ok := m[node.Pos]; ok {
 						if f == 0 {
 							r = pl.Rune()
 						} else {
@@ -63,7 +63,7 @@ func (gs *GameState) String() string {
 						}
 					}
 				}
-				if pac, ok := gs.pacs[0][cell.Pos]; ok {
+				if pac, ok := gs.pacs[0][node.Pos]; ok {
 					r = pac.Rune()
 				}
 				runes[x] = r
@@ -84,11 +84,11 @@ func (p path) Debug(from Pos) string {
 	for y := 0; y < G.height; y++ {
 		runes := make([]rune, G.width)
 		for x := 0; x < G.width; x++ {
-			if cell, ok := G.graph.cells[xy(x, y)]; ok {
+			if node, ok := G.graph.cells[xy(x, y)]; ok {
 				r := ' '
-				if p.contains(cell.Pos) {
-					r = rune(fmt.Sprintf("%d", G.graph.dists[move(p[0], cell)]%10)[0])
-				} else if cell.Pos == from {
+				if p.contains(node.Pos) {
+					r = rune(fmt.Sprintf("%d", G.graph.dists[move(p[0], node)]%10)[0])
+				} else if node.Pos == from {
 					r = 'X'
 				}
 				runes[x] = r
@@ -343,9 +343,9 @@ func (G *Game) ReadGameState() {
 		G.oldestPelletFresness = trackPelletFreshness(G.pellets, G.before.pellets)
 		// evict consumed pellets
 		for _, pac := range G.Allies() {
-			cell := G.graph.cells[pac.Pos]
-			untrackPelletAt(cell.Pos)
-			for pos := range cell.linkedWith {
+			node := G.graph.cells[pac.Pos]
+			untrackPelletAt(node.Pos)
+			for pos := range node.linkedWith {
 				if G.pellets[0][pos].Value == Nought {
 					untrackPelletAt(pos)
 				}
@@ -384,28 +384,28 @@ const (
 )
 
 // influence: from a position, in how many turns can I get to how many cells (ordered by dist) ?
-type influence map[turn][]*Cell
+type influence map[turn][]*Node
 
-func (nflc influence) addCells(at turn, cells ...*Cell) {
+func (nflc influence) addCells(at turn, cells ...*Node) {
 	nflc[at] = append(nflc[at], cells...)
 }
-func (nflc influence) at(t turn) []*Cell {
+func (nflc influence) at(t turn) []*Node {
 	return nflc[t]
 }
-func (nflc influence) containsCell(at turn, cell *Cell) bool {
-	for _, c := range nflc[at] {
-		if c.Pos == cell.Pos {
+func (nflc influence) containsCell(at turn, node *Node) bool {
+	for _, n := range nflc[at] {
+		if n.Pos == node.Pos {
 			return true
 		}
 	}
 	return false
 }
 
-type path []*Cell
+type path []*Node
 
 func (p path) index(pos Pos) (idx int) {
-	for i, cell := range p {
-		if cell.Pos == pos {
+	for i, node := range p {
+		if node.Pos == pos {
 			return i
 		}
 	}
@@ -413,8 +413,8 @@ func (p path) index(pos Pos) (idx int) {
 }
 
 func (p path) contains(pos Pos) bool {
-	for _, cell := range p {
-		if cell.Pos == pos {
+	for _, node := range p {
+		if node.Pos == pos {
 			return true
 		}
 	}
@@ -423,7 +423,7 @@ func (p path) contains(pos Pos) bool {
 
 // Graph _
 type Graph struct {
-	cells      map[Pos]*Cell
+	cells      map[Pos]*Node
 	positions  []Pos                     // sorted
 	dists      map[Move]Dist             // without any bumps
 	paths      map[Move]path             // without any bumps
@@ -433,7 +433,7 @@ type Graph struct {
 // NewGraph _
 func NewGraph(capacity int) *Graph {
 	g := new(Graph)
-	g.cells = make(map[Pos]*Cell, capacity)
+	g.cells = make(map[Pos]*Node, capacity)
 	g.positions = make([]Pos, 0, capacity)
 	g.dists = make(map[Move]Dist, capacity)
 	g.paths = make(map[Move]path, capacity)
@@ -441,39 +441,39 @@ func NewGraph(capacity int) *Graph {
 	return g
 }
 func (g *Graph) createCell(x, y int) {
-	nC := &Cell{
+	nC := &Node{
 		Pos:        xy(x, y),
-		neighbours: make([]*Cell, 0, 4),
-		linkedWith: make(map[Pos]*Cell),
+		neighbours: make([]*Node, 0, 4),
+		linkedWith: make(map[Pos]*Node),
 	}
 	g.cells[nC.Pos] = nC
 	g.positions = append(g.positions, nC.Pos)
 }
 func (g Graph) linkTogether() {
-	for _, cell := range g.cells {
+	for _, node := range g.cells {
 		for _, dir := range Directions {
-			if c, ok := g.cells[cell.ToDirection(dir)]; ok {
-				cell.neighbours = append(cell.neighbours, c)
+			if n, ok := g.cells[node.ToDirection(dir)]; ok {
+				node.neighbours = append(node.neighbours, n)
 			}
-			current, ok := g.cells[cell.ToDirection(dir)]
+			current, ok := g.cells[node.ToDirection(dir)]
 			for ok {
-				if current.Pos == cell.Pos {
+				if current.Pos == node.Pos {
 					break
 				}
-				cell.linkedWith[current.Pos] = current
+				node.linkedWith[current.Pos] = current
 				current, ok = g.cells[current.ToDirection(dir)]
 			}
 		}
 	}
 }
-func (g Graph) breadthFirstSearch(from *Cell, compute func(cell *Cell, dist Dist, visited []*Cell)) {
-	visited := make([]*Cell, 0, len(g.cells))
-	markAsVisited := func(c *Cell) {
-		visited = append(visited, c)
+func (g Graph) breadthFirstSearch(from *Node, compute func(node *Node, dist Dist, visited []*Node)) {
+	visited := make([]*Node, 0, len(g.cells))
+	markAsVisited := func(n *Node) {
+		visited = append(visited, n)
 	}
-	wasVisited := func(cell *Cell) bool {
-		for _, c := range visited {
-			if c.Pos == cell.Pos {
+	wasVisited := func(node *Node) bool {
+		for _, n := range visited {
+			if n.Pos == node.Pos {
 				return true
 			}
 		}
@@ -485,52 +485,52 @@ func (g Graph) breadthFirstSearch(from *Cell, compute func(cell *Cell, dist Dist
 	}
 	markAsVisited(start)
 	type toVisit struct {
-		*Cell
+		*Node
 		Dist
 	}
 	visits := []toVisit{{start, 0}}
 	for len(visits) > 0 {
 		var current toVisit
 		current, visits = visits[0], visits[1:]
-		compute(current.Cell, current.Dist, visited)
-		for _, c := range current.neighbours {
-			if !wasVisited(c) {
-				markAsVisited(c)
-				visits = append(visits, toVisit{c, current.Dist + 1})
+		compute(current.Node, current.Dist, visited)
+		for _, n := range current.neighbours {
+			if !wasVisited(n) {
+				markAsVisited(n)
+				visits = append(visits, toVisit{n, current.Dist + 1})
 			}
 		}
 	}
 }
 func (g Graph) compute() {
-	compute := func(cell *Cell, _ Dist, visited []*Cell) {
-		wasVisited := func(cell *Cell) bool {
-			for _, c := range visited {
-				if c.Pos == cell.Pos {
+	compute := func(node *Node, _ Dist, visited []*Node) {
+		wasVisited := func(node *Node) bool {
+			for _, n := range visited {
+				if n.Pos == node.Pos {
 					return true
 				}
 			}
 			return false
 		}
-		g.paths[move(cell, cell)] = make(path, 0)
-		for _, neighbour := range cell.neighbours {
-			g.dists[move(cell, neighbour)] = Dist(1)
-			g.dists[move(neighbour, cell)] = Dist(1)
-			if _, ok := g.paths[move(cell, neighbour)]; !ok {
-				g.paths[move(cell, neighbour)] = path{neighbour}
+		g.paths[move(node, node)] = make(path, 0)
+		for _, neighbour := range node.neighbours {
+			g.dists[move(node, neighbour)] = Dist(1)
+			g.dists[move(neighbour, node)] = Dist(1)
+			if _, ok := g.paths[move(node, neighbour)]; !ok {
+				g.paths[move(node, neighbour)] = path{neighbour}
 			}
-			if _, ok := g.paths[move(neighbour, cell)]; !ok {
-				g.paths[move(neighbour, cell)] = path{cell}
+			if _, ok := g.paths[move(neighbour, node)]; !ok {
+				g.paths[move(neighbour, node)] = path{node}
 			}
 			if wasVisited(neighbour) {
-				for _, c := range visited {
-					if c.Pos != cell.Pos && c.Pos != neighbour.Pos {
-						nDist := g.dists[move(neighbour, c)] + 1
-						g.dists[move(cell, c)] = nDist
-						g.dists[move(c, cell)] = nDist
-						if _, ok := g.paths[move(cell, c)]; !ok {
-							if nPath, ok := g.paths[move(neighbour, c)]; ok {
-								g.paths[move(cell, c)] = append(path{neighbour}, nPath...)
-								g.paths[move(c, cell)] = append(g.paths[move(c, neighbour)], cell)
+				for _, n := range visited {
+					if n.Pos != node.Pos && n.Pos != neighbour.Pos {
+						nDist := g.dists[move(neighbour, n)] + 1
+						g.dists[move(node, n)] = nDist
+						g.dists[move(n, node)] = nDist
+						if _, ok := g.paths[move(node, n)]; !ok {
+							if nPath, ok := g.paths[move(neighbour, n)]; ok {
+								g.paths[move(node, n)] = append(path{neighbour}, nPath...)
+								g.paths[move(n, node)] = append(g.paths[move(n, neighbour)], node)
 							}
 						}
 					}
@@ -539,18 +539,18 @@ func (g Graph) compute() {
 		}
 	}
 	g.breadthFirstSearch(nil, compute)
-	for _, cell := range g.cells {
+	for _, node := range g.cells {
 		lastDist := Dist(1)
-		g.influences[speed1][cell.Pos] = influence{0: {cell}, 1: append([]*Cell{cell}, cell.neighbours...)}
-		g.influences[speed2][cell.Pos] = influence{0: {cell}}
-		g.breadthFirstSearch(cell, func(c *Cell, dist Dist, visited []*Cell) {
+		g.influences[speed1][node.Pos] = influence{0: {node}, 1: append([]*Node{node}, node.neighbours...)}
+		g.influences[speed2][node.Pos] = influence{0: {node}}
+		g.breadthFirstSearch(node, func(n *Node, dist Dist, visited []*Node) {
 			if lastDist == dist-1 {
 				lastDist = dist
 				t := turn(dist)
 				if t%2 == 0 {
-					g.influences[speed2][cell.Pos][t/2] = append(visited)
+					g.influences[speed2][node.Pos][t/2] = append(visited)
 				}
-				g.influences[speed1][cell.Pos][t] = append(visited)
+				g.influences[speed1][node.Pos][t] = append(visited)
 			}
 		})
 	}
@@ -605,7 +605,7 @@ func (mv Move) String() string {
 	return fmt.Sprintf("{%v -> %v}", mv.from, mv.to)
 }
 
-func move(from, to *Cell) Move {
+func move(from, to *Node) Move {
 	return Move{from.Pos, to.Pos}
 }
 
@@ -638,11 +638,11 @@ func (pl Pellet) Rune() rune {
 	}
 }
 
-// Cell _
-type Cell struct {
+// Node _
+type Node struct {
 	Pos
-	neighbours []*Cell       // sorted by Direction order
-	linkedWith map[Pos]*Cell // cells with same row or column without any wall in between
+	neighbours []*Node       // sorted by Direction order
+	linkedWith map[Pos]*Node // cells with same row or column without any wall in between
 }
 
 // G Game

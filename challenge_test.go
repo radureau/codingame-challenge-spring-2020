@@ -17,9 +17,9 @@ func ExampleGraph_breadthFirstSearch() {
 	G = GameFromIoReader(input)
 	G.buildGraph()
 	i := 0
-	G.graph.breadthFirstSearch(nil, func(cell *Cell, dist Dist, _ []*Cell) {
+	G.graph.breadthFirstSearch(nil, func(node *Node, dist Dist, _ []*Node) {
 		i++
-		fmt.Println(i, cell.Pos, dist)
+		fmt.Println(i, node.Pos, dist)
 	})
 	fmt.Println(len(G.graph.cells))
 	//Output:
