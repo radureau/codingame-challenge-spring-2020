@@ -39,6 +39,27 @@ func ExampleGraph_breadthFirstSearch() {
 	// 13
 }
 
+func ExampleGraph_paths() {
+	input, err := os.Open("simple.txt")
+	if err != nil {
+		panic(err)
+	}
+	G = GameFromIoReader(input)
+	G.buildGraph()
+	for pos := range G.graph.cells {
+		fmt.Println("##########")
+		fmt.Println(pos)
+		for mv, path := range G.graph.paths {
+			if mv.from != pos {
+				continue
+			}
+			fmt.Println(path.Debug(mv.from))
+		}
+	}
+
+	// Output:
+}
+
 func TestPos(t *testing.T) {
 	G = new(Game)
 	G.height = 3

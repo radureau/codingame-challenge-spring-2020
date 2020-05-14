@@ -76,6 +76,31 @@ func (gs *GameState) String() string {
 	return s
 }
 
+func (p path) Debug(from Pos) string {
+	if len(p) < 1 {
+		return fmt.Sprintf("~path~\n%v :\n\n", Move{from, from})
+	}
+	s := fmt.Sprintf("~path~\n%v :\n", Move{from, p[len(p)-1].Pos})
+	for y := 0; y < G.height; y++ {
+		runes := make([]rune, G.width)
+		for x := 0; x < G.width; x++ {
+			if cell, ok := G.graph.cells[xy(x, y)]; ok {
+				r := ' '
+				if p.contains(cell.Pos) {
+					r = rune(fmt.Sprintf("%d", G.graph.dists[move(p[0], cell)]%10)[0])
+				} else if cell.Pos == from {
+					r = 'X'
+				}
+				runes[x] = r
+			} else {
+				runes[x] = '#'
+			}
+		}
+		s += string(runes) + "\n"
+	}
+	return s
+}
+
 type pacID int
 
 // PacID _
@@ -378,6 +403,24 @@ func (nflc influence) containsCell(at turn, cell *Cell) bool {
 
 type path []*Cell
 
+func (p path) index(pos Pos) (idx int) {
+	for i, cell := range p {
+		if cell.Pos == pos {
+			return i
+		}
+	}
+	return -1
+}
+
+func (p path) contains(pos Pos) bool {
+	for _, cell := range p {
+		if cell.Pos == pos {
+			return true
+		}
+	}
+	return false
+}
+
 // Graph _
 type Graph struct {
 	cells      map[Pos]*Cell
@@ -556,6 +599,10 @@ func (p Pos) ToDirection(dir direction) Pos {
 // Move _
 type Move struct {
 	from, to Pos
+}
+
+func (mv Move) String() string {
+	return fmt.Sprintf("{%v -> %v}", mv.from, mv.to)
 }
 
 func move(from, to *Cell) Move {
