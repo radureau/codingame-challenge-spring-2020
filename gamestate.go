@@ -190,7 +190,7 @@ func (G *Game) ReadGameState() {
 			node := G.graph.cells[pac.Pos]
 			untrackPelletAt(node.Pos)
 			for pos := range node.linkedWith {
-				if G.pellets[0][pos].Value == Nought {
+				if plt, ok := G.pellets[0][pos]; ok && plt.Value == Nought {
 					untrackPelletAt(pos)
 				}
 			}
