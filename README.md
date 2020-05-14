@@ -41,4 +41,20 @@ Given
 
 
 ### Decide between SWITCH SPEED MOVE
-#Cooldown ?
+```
+If Cooldown > 0 then MOVE
+If Turn == 1 || Turn == 2
+    If Cherry not next to me then check for opponent or else SPEED
+    Else Move to Cherry
+If Opponent Next to me
+    If I can beat him then move to him
+    If he is faster then SWICH (if I can block him do that instead)
+    If he can't transform then SWITCH
+    If lot of pellet in sight then SPEED
+    Else SWITCH
+If must/shoud collide with opponent then SWITCH to type beating nearest threat
+If MyProgress near end then MOVE
+If Lot of pellets left in fog of war AND oponents last seen type not threatning then SPEED
+If Can kill oponent Pac then use SWITCH/SPEED/MOVE accordingly
+DEFAULT MOVE
+```

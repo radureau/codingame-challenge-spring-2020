@@ -66,12 +66,13 @@ func main() {
 
 	G.PlayFirstTurn()
 	fmt.Println("MOVE 0 15 10")
-	// os.Exit(0)
+	if os.Getenv("USER") == os.Getenv("LOGNAME") {
+		fmt.Println(G)
+		os.Exit(0)
+	}
 	for {
 		G.ReadGameState()
 		// fmt.Fprintln(os.Stderr, "Debug messages...")
 		fmt.Println("MOVE 0 15 10") // MOVE <pacID> <x> <y>
-		break
 	}
-	fmt.Println(G)
 }
