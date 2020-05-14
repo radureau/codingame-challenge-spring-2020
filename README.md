@@ -11,7 +11,7 @@
 - #Pac0 = #Ally0 * 2
 - #Pellet0 = #Node - #Pac0 - #Cherry0
 - #ScorePt0 = #Pellet0 + #Cherry0*10
-- ScoreTarget = #ScorePt0 - MyScore - OpntScore +1
+- ScoreTarget = #ScorePt0/2 +1
 - MyProgress = MyScore*100/ScoreTarget
 - OpntProgress = OpntScore*100/ScoreTarget
 - GameProgress = Game.Turn*100/200 = Game.Turn/2
