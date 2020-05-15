@@ -2,7 +2,7 @@ package main
 
 // Graph _
 type Graph struct {
-	cells      map[Pos]*Node
+	nodes      map[Pos]*Node
 	positions  []Pos                     // sorted
 	dists      map[Move]Dist             // without any bumps
 	paths      map[Move]path             // without any bumps
@@ -13,13 +13,13 @@ type Graph struct {
 type Node struct {
 	Pos
 	neighbours []*Node       // sorted by Direction order
-	linkedWith map[Pos]*Node // cells with same row or column without any wall in between
+	linkedWith map[Pos]*Node // nodes with same row or column without any wall in between
 }
 
 // NewGraph _
 func NewGraph(capacity int) *Graph {
 	g := new(Graph)
-	g.cells = make(map[Pos]*Node, capacity)
+	g.nodes = make(map[Pos]*Node, capacity)
 	g.positions = make([]Pos, 0, capacity)
 	g.dists = make(map[Move]Dist, capacity)
 	g.paths = make(map[Move]path, capacity)
@@ -32,28 +32,28 @@ func (g *Graph) createNode(x, y int) {
 		neighbours: make([]*Node, 0, 4),
 		linkedWith: make(map[Pos]*Node),
 	}
-	g.cells[nC.Pos] = nC
+	g.nodes[nC.Pos] = nC
 	g.positions = append(g.positions, nC.Pos)
 }
 func (g Graph) linkTogether() {
-	for _, node := range g.cells {
+	for _, node := range g.nodes {
 		for _, dir := range Directions {
-			if n, ok := g.cells[node.ToDirection(dir)]; ok {
+			if n, ok := g.nodes[node.ToDirection(dir)]; ok {
 				node.neighbours = append(node.neighbours, n)
 			}
-			current, ok := g.cells[node.ToDirection(dir)]
+			current, ok := g.nodes[node.ToDirection(dir)]
 			for ok {
 				if current.Pos == node.Pos {
 					break
 				}
 				node.linkedWith[current.Pos] = current
-				current, ok = g.cells[current.ToDirection(dir)]
+				current, ok = g.nodes[current.ToDirection(dir)]
 			}
 		}
 	}
 }
 func (g Graph) breadthFirstSearch(from *Node, compute func(node *Node, dist Dist, visited []*Node)) {
-	visited := make([]*Node, 0, len(g.cells))
+	visited := make([]*Node, 0, len(g.nodes))
 	markAsVisited := func(n *Node) {
 		visited = append(visited, n)
 	}
@@ -67,7 +67,7 @@ func (g Graph) breadthFirstSearch(from *Node, compute func(node *Node, dist Dist
 	}
 	start := from
 	if start == nil {
-		start = g.cells[Pos(g.positions[0])]
+		start = g.nodes[Pos(g.positions[0])]
 	}
 	markAsVisited(start)
 	type toVisit struct {
@@ -125,7 +125,7 @@ func (g Graph) compute() {
 		}
 	}
 	g.breadthFirstSearch(nil, compute)
-	for _, node := range g.cells {
+	for _, node := range g.nodes {
 		lastDist := Dist(1)
 		g.influences[speed1][node.Pos] = influence{0: {node}, 1: append([]*Node{node}, node.neighbours...)}
 		g.influences[speed2][node.Pos] = influence{0: {node}}

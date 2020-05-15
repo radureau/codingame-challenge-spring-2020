@@ -10,12 +10,13 @@ func (G *Game) String() string {
 	return s
 }
 
-func (gs *GameState) String() string {
-	s := ""
+func (gs GameState) String() string {
+	s := fmt.Sprintf("Game: %.2f\tScore: %.2f\tOpnt: %.2f\n",
+		gs.GameProgress(), gs.MyProgress(), gs.OpntProgress())
 	for y := 0; y < G.height; y++ {
 		runes := make([]rune, G.width)
 		for x := 0; x < G.width; x++ {
-			if node, ok := G.graph.cells[xy(x, y)]; ok {
+			if node, ok := G.graph.nodes[xy(x, y)]; ok {
 				r := ' '
 				for f, m := range gs.pellets {
 					if pl, ok := m[node.Pos]; ok {
@@ -47,7 +48,7 @@ func (p path) Debug(from Pos) string {
 	for y := 0; y < G.height; y++ {
 		runes := make([]rune, G.width)
 		for x := 0; x < G.width; x++ {
-			if node, ok := G.graph.cells[xy(x, y)]; ok {
+			if node, ok := G.graph.nodes[xy(x, y)]; ok {
 				r := ' '
 				if p.contains(node.Pos) {
 					r = rune(fmt.Sprintf("%d", G.graph.dists[move(p[0], node)]%10)[0])

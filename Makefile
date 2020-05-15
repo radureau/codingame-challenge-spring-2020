@@ -13,4 +13,10 @@ define install_gocat
 endef
 
 readASample:
-	cp mapReader.go.backup dist/response.go 
+	cp mapReader.go.backup dist/response.go
+	@echo go to codingame and make sure it is synced
+
+sample%: build
+	cat samples/input$*.txt | go run dist/response.go
+
+sample11:

@@ -24,7 +24,7 @@
 - [ ] Find cut vertices -> Invariable  
 - [x] Initialize Fog of War (track pellets/cherries status and opponents potential positions) -> Variable  
 
-### Attribute Score to a move
+### Attribute Score to a move (within an ally influence)
 Given  
 - _a Fog of War state_
 - _MyProgress_

@@ -21,7 +21,7 @@ func ExampleGraph_breadthFirstSearch() {
 		i++
 		fmt.Println(i, node.Pos, dist)
 	})
-	fmt.Println(len(G.graph.cells))
+	fmt.Println(len(G.graph.nodes))
 	//Output:
 	// 1 (0,1) 0
 	// 2 (1,1) 1
@@ -46,7 +46,7 @@ func ExampleGraph_paths() {
 	}
 	G = GameFromIoReader(input)
 	G.buildGraph()
-	for pos := range G.graph.cells {
+	for pos := range G.graph.nodes {
 		fmt.Println("##########")
 		fmt.Println(pos)
 		for mv, path := range G.graph.paths {
@@ -148,11 +148,11 @@ func TestGraph(t *testing.T) {
 	}
 	for i, tC := range testCases2 {
 		t.Run(fmt.Sprint(i, tC), func(t *testing.T) {
-			assert.Equal(t, tC.nLinkedWith, len(G.graph.cells[tC.Pos].linkedWith))
+			assert.Equal(t, tC.nLinkedWith, len(G.graph.nodes[tC.Pos].linkedWith))
 		})
 	}
 
-	C := G.graph.cells
+	C := G.graph.nodes
 
 	testCases3 := []struct {
 		Move
@@ -176,7 +176,7 @@ func TestInfluence(t *testing.T) {
 	assert.NoError(t, err)
 	G = GameFromIoReader(input)
 	G.buildGraph()
-	C := G.graph.cells
+	C := G.graph.nodes
 
 	testCases := []struct {
 		Pos
