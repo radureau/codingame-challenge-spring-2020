@@ -27,6 +27,19 @@ func (gs GameState) Allies() []*Pac {
 	return allies
 }
 
+// Opnts _
+func (gs GameState) Opnts() []*Pac {
+	opnts := make([]*Pac, 0, 5)
+	for _, m := range gs.pacs {
+		for _, pac := range m {
+			if !pac.ally {
+				opnts = append(opnts, pac)
+			}
+		}
+	}
+	return opnts
+}
+
 // MyProgress _
 func (gs GameState) MyProgress() float64 {
 	return float64(gs.myScore) * 100 / float64(gs.scoreToReach)
@@ -57,7 +70,7 @@ func trackPacFreshness(current, before map[freshness]map[Pos]*Pac) (oldestFreshn
 	for freshness, pacs := range before {
 		m := make(map[Pos]*Pac)
 		for _, pac := range pacs {
-			if pac.ally {
+			if freshness > 1 && pac.ally {
 				G.alliesCount--
 				continue // we lost a comrade: one of ours was killed! May he Rest In Peace †
 			}
@@ -75,6 +88,7 @@ func trackPacFreshness(current, before map[freshness]map[Pos]*Pac) (oldestFreshn
 				if pac.speedTurnsLeft > 0 {
 					pac.speedTurnsLeft--
 				}
+				pac.freshness++
 				m[pac.Pos] = pac
 			}
 		}

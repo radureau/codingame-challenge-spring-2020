@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 )
 
 // G Game
@@ -13,6 +14,7 @@ var G *Game
 
 func main() {
 	G = GameFromIoReader(os.Stdin)
+	G.debug = false
 	G.buildGraph()
 	for !G.IsOver() {
 		G.Play()
@@ -34,10 +36,10 @@ func (G Game) Turn() int {
 
 // Play _
 func (G *Game) Play() {
-	defer printElapsedTime(fmt.Sprintf("Play turn %d", G.Turn()))()
 	G.ReadGameState()
 	myPacs := G.Allies()
 	moves := make([]string, len(myPacs))
+	start := time.Now()
 	for i, ally := range myPacs {
 		moves[i] = fmt.Sprintf("%s %d %v",
 			"MOVE",
@@ -46,7 +48,9 @@ func (G *Game) Play() {
 		) // MOVE <pacID> <x> <y>
 	}
 	fmt.Println(strings.Join(moves, "|"))
+	printElapsedTimeSince(start, fmt.Sprintf("Play turn %d", G.Turn()))()
 	if os.Getenv("USER") == "__USER__" {
+		fmt.Println()
 		fmt.Println(G.GameState)
 	}
 }
@@ -61,6 +65,7 @@ type Game struct {
 	pastStates                 []*GameState // from latest to oldest
 	scoreToReach               ScorePoint
 	alliesCount, opponentCount int
+	debug                      bool
 }
 
 // GameFromIoReader _
@@ -78,7 +83,7 @@ func (G Game) Text() string {
 	if err := G.scanner.Err(); err != nil {
 		panic(err)
 	}
-	if os.Getenv("USER") != "__USER__" {
+	if G.debug && os.Getenv("USER") != "__USER__" {
 		debug(G.scanner.Text())
 	}
 	return G.scanner.Text()
@@ -174,8 +179,8 @@ func (G *Game) ReadGameState() {
 	} else {
 		G.oldestPelletFresness = trackPelletFreshness(G.pellets, G.before.pellets)
 		// evict consumed pellets
-		for _, pac := range G.Allies() {
-			node := G.graph.nodes[pac.Pos]
+		for pos := range G.pacs[0] {
+			node := G.graph.nodes[pos]
 			untrackPelletAt(node.Pos)
 			for pos := range node.linkedWith {
 				if plt, ok := G.pellets[0][pos]; ok && plt.Value == Nought {

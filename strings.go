@@ -13,6 +13,7 @@ func (G *Game) String() string {
 func (gs GameState) String() string {
 	s := fmt.Sprintf("Game: %.2f\tScore: %.2f\tOpnt: %.2f\n",
 		gs.GameProgress(), gs.MyProgress(), gs.OpntProgress())
+	s += fmt.Sprintf("Allies: %v\nOpnts: %v\n\n", gs.Allies(), gs.Opnts())
 	for y := 0; y < G.height; y++ {
 		runes := make([]rune, G.width)
 		for x := 0; x < G.width; x++ {
@@ -66,12 +67,21 @@ func (p path) Debug(from Pos) string {
 }
 
 // Rune UPPERCASE means ally
-func (p Pac) Rune() rune {
-	r := []rune{'𝑃', '𝐹', '𝐶'}[p.Shifumi]
-	if !p.ally {
+func (pac Pac) Rune() rune {
+	r := []rune{'𝑃', '𝐹', '𝐶'}[pac.Shifumi]
+	if !pac.ally {
 		r -= 26
 	}
 	return r
+}
+
+// String UPPERCASE
+func (pac Pac) String() string { // shifumi Rune pos freh
+	s := fmt.Sprintf("%s %v", string(pac.Shifumi.Rune()), pac.Pos)
+	if !pac.ally {
+		s += fmt.Sprintf(":%d", pac.freshness)
+	}
+	return s
 }
 
 func (p Pos) String() string {

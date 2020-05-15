@@ -11,10 +11,17 @@ func debug(args ...interface{}) {
 }
 
 func printElapsedTime(name string) func() {
-	start := time.Now()
+	return printElapsedTimeSince(time.Now(), name)
+}
+
+func printElapsedTimeSince(since time.Time, name string) func() {
+	start := since
 	return func() {
 		elapsed := time.Since(start)
 		// codingame environment seems to multiply cpu time by a factor of 4
-		debug(fmt.Sprintf("\t%s\ttook %dms", name, elapsed.Milliseconds()*4))
+		if os.Getenv("USER") == "__USER__" {
+			elapsed *= 4
+		}
+		debug(fmt.Sprintf("\t%s\ttook %dms", name, elapsed.Milliseconds()))
 	}
 }

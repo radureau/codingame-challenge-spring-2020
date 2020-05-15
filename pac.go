@@ -7,6 +7,7 @@ type Pac struct {
 	Shifumi
 	speedTurnsLeft  turn
 	abilityCooldown turn
+	freshness
 }
 
 // PacID _
