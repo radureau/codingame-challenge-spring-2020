@@ -36,7 +36,8 @@ Given
 - [ ] How many pellet can I eat  
 - [ ] How many pellet can I discover  
 - [ ] How many ally can I encounter  
-- [ ] How many opponents can I encounter  
+- [ ] How many opponents can I encounter
+- [ ] How much threat 
 - [ ] How much fog of war can I decrease  
 
 

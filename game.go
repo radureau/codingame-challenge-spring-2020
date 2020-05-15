@@ -14,50 +14,80 @@ var G *Game
 func main() {
 	G = GameFromIoReader(os.Stdin)
 	G.buildGraph()
-
-	G.PlayFirstTurn()
-	if os.Getenv("USER") == "gabrielradureau" {
-		fmt.Println(G.GameState)
-	}
 	for !G.IsOver() {
 		G.Play()
-		if os.Getenv("USER") == "gabrielradureau" {
-			fmt.Println(G.GameState)
-		}
+	}
+}
+
+// IsOver _
+func (G Game) IsOver() bool {
+	return G.GameState != nil && G.GameState.IsOver()
+}
+
+// Turn _
+func (G Game) Turn() int {
+	if G.GameState != nil {
+		return int(G.turn)
+	}
+	return 1
+}
+
+// Play _
+func (G *Game) Play() {
+	defer printElapsedTime(fmt.Sprintf("Play turn %d", G.Turn()))()
+	G.ReadGameState()
+	myPacs := G.Allies()
+	moves := make([]string, len(myPacs))
+	for i, ally := range myPacs {
+		moves[i] = fmt.Sprintf("%s %d %v",
+			"MOVE",
+			ally.ID,
+			"15 10",
+		) // MOVE <pacID> <x> <y>
+	}
+	fmt.Println(strings.Join(moves, "|"))
+	if os.Getenv("USER") == "__USER__" {
+		fmt.Println(G.GameState)
 	}
 }
 
 // Game _
 type Game struct {
-	*bufio.Scanner
-	width  int // width: size of the grid
-	height int // height: top left corner is (x=0, y=0)
-	graph  *Graph
+	scanner *bufio.Scanner
+	width   int // width: size of the grid
+	height  int // height: top left corner is (x=0, y=0)
+	graph   *Graph
 	*GameState
 	pastStates                 []*GameState // from latest to oldest
 	scoreToReach               ScorePoint
 	alliesCount, opponentCount int
 }
 
-func (G *Game) scanWidthAndHeight() {
-	G.Scan()
-	fmt.Sscan(G.Text(), &G.width, &G.height)
-}
-
 // GameFromIoReader _
 func GameFromIoReader(in io.Reader) *Game {
 	G := new(Game)
-	G.Scanner = bufio.NewScanner(in)
-	G.Buffer(make([]byte, 1000000), 1000000)
-	G.scanWidthAndHeight()
+	G.scanner = bufio.NewScanner(in)
+	G.scanner.Buffer(make([]byte, 1000000), 1000000)
+	fmt.Sscan(G.Text(), &G.width, &G.height)
 	return G
+}
+
+// Text wrap Scanner Text
+func (G Game) Text() string {
+	G.scanner.Scan()
+	if err := G.scanner.Err(); err != nil {
+		panic(err)
+	}
+	if os.Getenv("USER") != "__USER__" {
+		debug(G.scanner.Text())
+	}
+	return G.scanner.Text()
 }
 
 func (G *Game) buildGraph() {
 	defer printElapsedTime("buildGraph")()
 	G.graph = NewGraph(G.width * G.height)
 	for y := 0; y < G.height; y++ {
-		G.Scan()
 		const floor = ' '
 		for x, r := range G.Text() { // one line of the grid: space " " is floor, pound "#" is wall
 			if r == floor {
@@ -78,10 +108,7 @@ func (G *Game) ReadGameState() {
 		G.pastStates = append([]*GameState{G.GameState}, G.pastStates...)
 		G.GameState = &GameState{Game: G, turn: G.turn + 1, before: G.GameState}
 	}
-	G.Scan()
 	fmt.Sscan(G.Text(), &G.myScore, &G.opponentScore)
-
-	G.Scan()
 	fmt.Sscan(G.Text(), &G.visiblePacCount)
 	G.pacs = make(map[freshness]map[Pos]*Pac)
 	G.pacs[0] = make(map[Pos]*Pac, G.visiblePacCount)
@@ -90,7 +117,6 @@ func (G *Game) ReadGameState() {
 		var _mine int
 		var x, y int
 		var typeID string
-		G.Scan()
 		fmt.Sscan(G.Text(), &pac.ID, &_mine, &x, &y, &typeID, &pac.speedTurnsLeft, &pac.abilityCooldown)
 		pac.ally = _mine != 0
 		pac.Pos = xy(x, y)
@@ -117,7 +143,6 @@ func (G *Game) ReadGameState() {
 		// todo: evict killed Pacs
 	}
 
-	G.Scan()
 	fmt.Sscan(G.Text(), &G.visiblePelletCount)
 	G.pellets = make(map[freshness]map[Pos]*Pellet)
 	G.pellets[0] = make(map[Pos]*Pellet, G.visiblePelletCount)
@@ -125,7 +150,6 @@ func (G *Game) ReadGameState() {
 	for i := 0; i < G.visiblePelletCount; i++ {
 		pl := new(Pellet)
 		var x, y int
-		G.Scan()
 		fmt.Sscan(G.Text(), &x, &y, &pl.Value)
 		pl.Pos = xy(x, y)
 		G.pellets[0][pl.Pos] = pl
@@ -160,25 +184,4 @@ func (G *Game) ReadGameState() {
 			}
 		}
 	}
-}
-
-// PlayFirstTurn _
-func (G *Game) PlayFirstTurn() {
-	defer printElapsedTime("PlayFirstTurn")()
-	G.Play()
-}
-
-// Play _
-func (G *Game) Play() {
-	G.ReadGameState()
-	myPacs := G.Allies()
-	moves := make([]string, len(myPacs))
-	for i, ally := range myPacs {
-		moves[i] = fmt.Sprintf("%s %d %v",
-			"MOVE",
-			ally.ID,
-			"15 10",
-		) // MOVE <pacID> <x> <y>
-	}
-	fmt.Println(strings.Join(moves, "|"))
 }
