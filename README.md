@@ -24,6 +24,17 @@
 - [ ] Find cut vertices -> Invariable  
 - [x] Initialize Fog of War (track pellets/cherries status and opponents potential positions) -> Variable  
 
+### INIT node with pellet ? score
+
+1st turn:
+> set pellet presence score proportional to distance from ally / foe
+Each turn:
+> decrease pellet presence score
+> If pellet is closer to a visible opponent then decrease even more
+> If uncovered node with pellet then increase value to path filled with (possible) pellets linked to it
+> If uncovered empty node then decrease value to path filled with possible pellets linked to it
+
+
 ### Attribute Score to a move (within an ally influence)
 Given  
 - _a Fog of War state_

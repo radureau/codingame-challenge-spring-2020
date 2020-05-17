@@ -1,11 +1,13 @@
 package main
 
+import "sort"
+
 // Graph _
 type Graph struct {
 	nodes      map[Pos]*Node
 	positions  []Pos                     // sorted
 	dists      map[Move]Dist             // without any bumps
-	paths      map[Move]path             // without any bumps
+	paths      map[Move]path             // shortest path without any bumps
 	influences [Nspeed]map[Pos]influence // influences with speed1 at index 0 and influences with speed2 at index 1
 }
 
@@ -88,48 +90,13 @@ func (g Graph) breadthFirstSearch(from *Node, compute func(node *Node, dist Dist
 	}
 }
 func (g Graph) compute() {
-	compute := func(node *Node, _ Dist, visited []*Node) {
-		wasVisited := func(node *Node) bool {
-			for _, n := range visited {
-				if n.Pos == node.Pos {
-					return true
-				}
-			}
-			return false
-		}
-		g.paths[move(node, node)] = make(path, 0)
-		for _, neighbour := range node.neighbours {
-			g.dists[move(node, neighbour)] = Dist(1)
-			g.dists[move(neighbour, node)] = Dist(1)
-			if _, ok := g.paths[move(node, neighbour)]; !ok {
-				g.paths[move(node, neighbour)] = path{neighbour}
-			}
-			if _, ok := g.paths[move(neighbour, node)]; !ok {
-				g.paths[move(neighbour, node)] = path{node}
-			}
-			if wasVisited(neighbour) {
-				for _, n := range visited {
-					if n.Pos != node.Pos && n.Pos != neighbour.Pos {
-						nDist := g.dists[move(neighbour, n)] + 1
-						g.dists[move(node, n)] = nDist
-						g.dists[move(n, node)] = nDist
-						if _, ok := g.paths[move(node, n)]; !ok {
-							if nPath, ok := g.paths[move(neighbour, n)]; ok {
-								g.paths[move(node, n)] = append(path{neighbour}, nPath...)
-								g.paths[move(n, node)] = append(g.paths[move(n, neighbour)], node)
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	g.breadthFirstSearch(nil, compute)
 	for _, node := range g.nodes {
+		g.dists[move(node, node)] = 0
 		lastDist := Dist(1)
 		g.influences[speed1][node.Pos] = influence{0: {node}, 1: append([]*Node{node}, node.neighbours...)}
 		g.influences[speed2][node.Pos] = influence{0: {node}}
 		g.breadthFirstSearch(node, func(n *Node, dist Dist, visited []*Node) {
+			g.dists[move(node, n)] = dist
 			if lastDist == dist-1 {
 				lastDist = dist
 				t := turn(dist)
@@ -140,4 +107,23 @@ func (g Graph) compute() {
 			}
 		})
 	}
+}
+
+// SortByDistanceToPos _
+type SortByDistanceToPos struct {
+	Pos
+	positions []Pos
+}
+
+func (s SortByDistanceToPos) Len() int { return len(s.positions) }
+func (s SortByDistanceToPos) Swap(i, j int) {
+	s.positions[i], s.positions[j] = s.positions[j], s.positions[i]
+}
+func (s SortByDistanceToPos) Less(i, j int) bool {
+	return s.positions[i].dist(s.Pos) < s.positions[j].dist(s.Pos)
+}
+
+// Sort _
+func (s SortByDistanceToPos) Sort() {
+	sort.Sort(s)
 }

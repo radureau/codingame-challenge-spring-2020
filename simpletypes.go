@@ -5,6 +5,12 @@ type freshness int
 
 func (t turn) freshness() freshness { return freshness(G.turn - t) }
 func (f freshness) turn() turn      { return G.turn - turn(f) }
+func (f freshness) fresher() freshness {
+	if f > 1 {
+		return f - 1
+	}
+	return 0
+}
 
 // MaxTurn _
 const MaxTurn = turn(200)
@@ -37,6 +43,10 @@ func (p Pos) sym() Pos {
 
 func (p Pos) xy() (int, int) {
 	return int(p) % G.width, int(p) / G.width
+}
+
+func (p Pos) dist(to Pos) Dist {
+	return G.graph.dists[Move{p, to}]
 }
 
 type direction struct {
@@ -74,3 +84,5 @@ type Move struct {
 func move(from, to *Node) Move {
 	return Move{from.Pos, to.Pos}
 }
+
+type hotness int

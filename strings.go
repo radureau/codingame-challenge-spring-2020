@@ -14,6 +14,9 @@ func (gs GameState) String() string {
 	s := fmt.Sprintf("Game: %.2f\tScore: %.2f\tOpnt: %.2f\n",
 		gs.GameProgress(), gs.MyProgress(), gs.OpntProgress())
 	s += fmt.Sprintf("Allies: %v\nOpnts: %v\n\n", gs.Allies(), gs.Opnts())
+	if gs.turn > 1 {
+		s += fmt.Sprintf("Visibles Pellets: %v\n", gs.pellets[0])
+	}
 	for y := 0; y < G.height; y++ {
 		runes := make([]rune, G.width)
 		for x := 0; x < G.width; x++ {
@@ -103,12 +106,16 @@ func (s Shifumi) Rune() rune {
 }
 
 // Rune _
-func (pl Pellet) Rune() rune {
-	switch pl.Value {
+func (plt Pellet) Rune() rune {
+	switch plt.Value {
 	case SuperPellet:
 		return 'x'
 		// return 0x2318
 	default:
 		return '·'
 	}
+}
+
+func (plt Pellet) String() string {
+	return fmt.Sprintf("%v", plt.hotnessForPac[G.closestAlliesToPos(plt.Pos)[0].PacID])
 }

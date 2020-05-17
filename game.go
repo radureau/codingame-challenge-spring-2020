@@ -41,17 +41,13 @@ func (G *Game) Play() {
 	moves := make([]string, len(myPacs))
 	start := time.Now()
 	for i, ally := range myPacs {
-		moves[i] = fmt.Sprintf("%s %d %v",
-			"MOVE",
-			ally.ID,
-			"15 10",
-		) // MOVE <pacID> <x> <y>
+		moves[i] = fmt.Sprintf(ally.Play())
 	}
 	fmt.Println(strings.Join(moves, "|"))
 	printElapsedTimeSince(start, fmt.Sprintf("Play turn %d", G.Turn()))()
-	if os.Getenv("USER") == "__USER__" {
-		fmt.Println()
-		fmt.Println(G.GameState)
+	if os.Getenv("USER") != "__USER__" {
+		debug()
+		debug(G.GameState)
 	}
 }
 
@@ -124,7 +120,8 @@ func (G *Game) ReadGameState() {
 		var typeID string
 		fmt.Sscan(G.Text(), &pac.ID, &_mine, &x, &y, &typeID, &pac.speedTurnsLeft, &pac.abilityCooldown)
 		pac.ally = _mine != 0
-		pac.Pos = xy(x, y)
+		pac.Node = G.graph.nodes[xy(x, y)]
+		G.pacs[0][pac.Pos] = pac
 		switch typeID {
 		case ROCK.String():
 			pac.Shifumi = ROCK
@@ -133,7 +130,9 @@ func (G *Game) ReadGameState() {
 		default:
 			pac.Shifumi = SCISSORS
 		}
-		G.pacs[0][pac.Pos] = pac
+		if pac.speedTurnsLeft > 0 {
+			pac.speed = speed2
+		}
 	}
 	if G.turn == 1 {
 		for _, pac := range G.Allies() {
@@ -145,34 +144,46 @@ func (G *Game) ReadGameState() {
 		G.oldestPacFreshness = 0
 	} else {
 		G.oldestPacFreshness = trackPacFreshness(G.pacs, G.before.pacs)
-		// todo: evict killed Pacs
+		// todo: evict killed oponents Pacs
 	}
 
 	fmt.Sscan(G.Text(), &G.visiblePelletCount)
 	G.pellets = make(map[freshness]map[Pos]*Pellet)
 	G.pellets[0] = make(map[Pos]*Pellet, G.visiblePelletCount)
-	nSuperPellet := 0
 	for i := 0; i < G.visiblePelletCount; i++ {
-		pl := new(Pellet)
+		plt := new(Pellet)
 		var x, y int
-		fmt.Sscan(G.Text(), &x, &y, &pl.Value)
-		pl.Pos = xy(x, y)
-		G.pellets[0][pl.Pos] = pl
-		if pl.Value == SuperPellet {
-			nSuperPellet++
+		fmt.Sscan(G.Text(), &x, &y, &plt.Value)
+		plt.Node = G.graph.nodes[xy(x, y)]
+		if G.turn == 1 {
+			plt.initHotness()
+		} else {
+			plt.hotnessForPac = G.before.getPelletAt(plt.Pos).hotnessForPac
+			if plt.Value != SuperPellet {
+				for i, pac := range G.closestAlliesToPos(plt.Pos) { // UPDATE HOTNESS
+					plt.hotnessForPac[pac.PacID] = 10 - hotness(i+1)*hotness(G.graph.dists[Move{pac.Pos, plt.Pos}])
+				}
+			}
 		}
+		G.pellets[0][plt.Pos] = plt
+		if plt.Value == SuperPellet {
+			G.superPelletCount++
+		}
+
 	}
 	if G.turn == 1 {
-		for pos := range G.graph.nodes {
+		for pos := range G.graph.nodes { // every cells not occupied holds a normal pellet
 			if _, ok := G.pellets[0][pos]; !ok {
 				if _, ok := G.pacs[0][pos]; !ok {
-					G.pellets[0][pos] = &Pellet{Pos: pos, Value: NormalPellet}
+					plt := &Pellet{Node: G.graph.nodes[pos], Value: NormalPellet}
+					plt.initHotness()
+					G.pellets[0][pos] = plt
 				}
 			}
 		}
 		G.oldestPelletFresness = 0
-		G.scoreToReach = (ScorePoint(len(G.graph.nodes)-len(G.pacs[0])-nSuperPellet)*NormalPellet+
-			ScorePoint(nSuperPellet)*SuperPellet)/
+		G.scoreToReach = (ScorePoint(len(G.graph.nodes)-len(G.pacs[0])-G.superPelletCount)*NormalPellet+
+			ScorePoint(G.superPelletCount)*SuperPellet)/
 			2 + 1
 		G.alliesCount = len(G.Allies())
 		G.opponentCount = G.alliesCount
@@ -181,10 +192,28 @@ func (G *Game) ReadGameState() {
 		// evict consumed pellets
 		for pos := range G.pacs[0] {
 			node := G.graph.nodes[pos]
-			untrackPelletAt(node.Pos)
+			G.untrackPelletAt(node.Pos)
 			for pos := range node.linkedWith {
 				if plt, ok := G.pellets[0][pos]; ok && plt.Value == Nought {
-					untrackPelletAt(pos)
+					G.untrackPelletAt(pos)
+				}
+			}
+		}
+		// decrease pellets hotness around concurrent pacs influence
+		for fresh, pacs := range G.pacs {
+			for _, pac := range pacs {
+				for otherFresh, pacs := range G.pacs {
+					for _, otherPac := range pacs {
+						if otherPac.PacID != pac.PacID {
+							estimateFor := turn(otherFresh) + 1
+							prediction := G.graph.influences[otherPac.speed][otherPac.Pos].at(estimateFor)
+							for _, n := range prediction {
+								_ = n
+								_ = fresh
+								//todo
+							}
+						}
+					}
 				}
 			}
 		}

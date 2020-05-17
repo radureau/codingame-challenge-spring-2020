@@ -22,6 +22,8 @@ func printElapsedTimeSince(since time.Time, name string) func() {
 		if os.Getenv("USER") == "__USER__" {
 			elapsed *= 4
 		}
-		debug(fmt.Sprintf("\t%s\ttook %dms", name, elapsed.Milliseconds()))
+		if !G.debug { // G.debug means we want to import output, so here we don't wan't to dirty the logs
+			debug(fmt.Sprintf("\t%s\ttook %dms", name, elapsed.Milliseconds()))
+		}
 	}
 }
